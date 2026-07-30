@@ -6,7 +6,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.1.0] - Unreleased
 
 Initial release. Every item below is real, working, and tested (`cargo test
---workspace` currently runs ~56 tests across the Rust workspace, plus a
+--workspace` currently runs 70 tests across the Rust workspace, plus a
 separately-verified Lean 4 proof suite) — see `README.md`'s Status section
 for what's still explicitly *not* implemented, and why.
 
