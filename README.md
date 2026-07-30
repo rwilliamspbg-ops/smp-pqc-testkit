@@ -49,16 +49,24 @@ Pre-1.0, actively developed. What actually works today:
   underlying RustCrypto crates against NIST's ground truth, not just internal
   self-consistency — see [test-vectors/acvp/SOURCE.md](test-vectors/acvp/SOURCE.md)
   for exactly what's covered and what isn't (no prehash mode).
-- `smp-pqc-network` (`scan tls`): a real TLS 1.3 handshake scanner reporting
-  which key-exchange group a server negotiates, using rustls 0.23's native
-  ML-KEM/hybrid support (`X25519MLKEM768`, `secp256r1MLKEM768`, pure
-  `MLKEM512/768/1024` via the `aws-lc-rs` crypto provider — no separate PQC
-  crate needed). Validates certificates against the Mozilla root store by
-  default; `--insecure` skips validation for scanning local test
-  infrastructure with a self-signed certificate. Tested against a local
-  rustls server (no external network dependency in CI) and manually verified
-  against real production infrastructure. **Only scan hosts you own or are
-  explicitly authorized to test.**
+- `smp-pqc-network` (`scan tls`, `scan ssh`): real handshake scanners
+  reporting the actually negotiated key-exchange algorithm.
+  - `scan tls` uses rustls 0.23's native ML-KEM/hybrid support
+    (`X25519MLKEM768`, `secp256r1MLKEM768`, pure `MLKEM512/768/1024` via the
+    `aws-lc-rs` crypto provider — no separate PQC crate needed). Validates
+    certificates against the Mozilla root store by default; `--insecure`
+    skips validation for scanning local test infrastructure with a
+    self-signed certificate. Tested against a local rustls server (no
+    external network dependency in CI) and manually verified against real
+    production infrastructure.
+  - `scan ssh` uses `russh` 0.62's native `mlkem768x25519-sha256` hybrid KEX
+    support (matching OpenSSH 9.x+). Does not verify host identity (accepts
+    any host key — there's no CA equivalent for SSH the way there is for
+    TLS); manually verified against `github.com`'s real SSH endpoint
+    (currently negotiates `curve25519-sha256`, correctly reported as
+    non-PQC). No local test-server coverage for the positive-detection path
+    yet, unlike `scan tls` — see [docs/threat-model.md](docs/threat-model.md).
+  - **Only scan hosts you own or are explicitly authorized to test.**
 - `smp-pqc-inventory` (`inventory` / `inventory --cbom`): scans a
   `Cargo.lock` and classifies known crypto crates (PQC vs. classical, and by
   primitive — KEM, signature, cipher, hash, MAC, protocol, RNG, or
@@ -82,11 +90,9 @@ Pre-1.0, actively developed. What actually works today:
   runners are too noisy for trustworthy timing measurements) — broad
   constant-time coverage across every operation is still future work.
 
-Still not implemented: SSH/QUIC scanning (blocked on integration work, not
-algorithm support — `russh` already supports the right hybrid KEX, see
-[docs/threat-model.md](docs/threat-model.md)), and TEE attestation and
-AF_XDP zero-copy benchmarking (blocked on hardware — even WSL2 doesn't
-unblock these, see the threat model doc). The relevant CLI subcommands
+Still not implemented: QUIC scanning, and TEE attestation and AF_XDP
+zero-copy benchmarking (blocked on hardware — even WSL2 doesn't unblock
+these, see the threat model doc). The relevant CLI subcommands
 exist but exit with an explicit, specific error rather than faking output.
 
 ## Usage
@@ -109,9 +115,10 @@ cargo run -p smp-pqc-cli -- test sig slh-dsa-shake-128f --iterations 20 --report
 cargo bench -p smp-pqc-bench --bench kem
 cargo bench -p smp-pqc-bench --bench sig
 
-# TLS PQC/hybrid handshake scan (only scan hosts you own or are authorized
-# to test)
+# TLS/SSH PQC/hybrid handshake scans (only scan hosts you own or are
+# authorized to test)
 cargo run -p smp-pqc-cli -- scan tls example.com --pqc-only --report json
+cargo run -p smp-pqc-cli -- scan ssh example.com --report json
 
 # Cryptography inventory / CBOM for this workspace's own dependencies
 cargo run -p smp-pqc-cli -- inventory .

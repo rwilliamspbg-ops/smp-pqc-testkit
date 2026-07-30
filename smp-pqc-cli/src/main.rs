@@ -100,6 +100,23 @@ enum ScanKind {
         #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
         report: ReportFormat,
     },
+    /// Scan an SSH endpoint's negotiated key-exchange algorithm for PQC/hybrid support.
+    ///
+    /// Only scan hosts you own or are explicitly authorized to test. Does
+    /// not verify host identity (accepts any host key) -- see
+    /// `smp-pqc-network::ssh`'s module docs for why.
+    Ssh {
+        host: String,
+        #[arg(long, default_value_t = 22)]
+        port: u16,
+        /// Exit non-zero if the negotiated key-exchange algorithm is not PQC/hybrid.
+        #[arg(long)]
+        pqc_only: bool,
+        #[arg(long, default_value_t = 10)]
+        timeout_secs: u64,
+        #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
+        report: ReportFormat,
+    },
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -150,6 +167,29 @@ fn main() -> Result<()> {
                         "{host}:{port} did not negotiate a PQC/hybrid key-exchange group \
                          (got {:?})",
                         r.negotiated_group
+                    );
+                }
+                Ok(())
+            }
+            ScanKind::Ssh {
+                host,
+                port,
+                pqc_only,
+                timeout_secs,
+                report,
+            } => {
+                let timeout = Duration::from_secs(timeout_secs);
+                let r = smp_pqc_network::ssh::scan_ssh(&host, port, timeout);
+                let passed = r.error.is_none() && (!pqc_only || r.is_pqc());
+                print_report(&r, passed, report)?;
+                if let Some(err) = &r.error {
+                    bail!("SSH scan of {host}:{port} failed: {err}");
+                }
+                if pqc_only && !r.is_pqc() {
+                    bail!(
+                        "{host}:{port} did not negotiate a PQC/hybrid key-exchange algorithm \
+                         (got {:?})",
+                        r.negotiated_kex
                     );
                 }
                 Ok(())

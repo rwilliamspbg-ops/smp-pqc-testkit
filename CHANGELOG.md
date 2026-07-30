@@ -7,6 +7,14 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **SSH PQC/hybrid KEX scanning** (`scan ssh`, `smp-pqc-network::ssh`): uses
+  `russh` 0.62's native `mlkem768x25519-sha256` support and its
+  `Handler::kex_done` callback to report the actually negotiated
+  key-exchange algorithm. Manually verified against `github.com`'s real SSH
+  endpoint (negotiated `curve25519-sha256`, correctly reported as non-PQC).
+  Does not verify host identity (accepts any host key). No local
+  test-server coverage for the positive-detection path yet, unlike
+  `scan tls` — see `docs/threat-model.md`.
 - A real DudeCT-based constant-time check for ML-KEM-768 decapsulation
   (`smp-pqc-core/examples/dudect_ml_kem_decap.rs`): tests whether timing
   depends on ciphertext validity (the implicit-rejection/CCA2 concern).

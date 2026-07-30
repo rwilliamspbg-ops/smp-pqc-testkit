@@ -229,6 +229,29 @@ fn scan_tls_unreachable_host_fails_clearly() {
 }
 
 #[test]
+fn scan_ssh_unreachable_host_fails_clearly() {
+    // No local test-server coverage for the positive PQC-detection path
+    // here, unlike scan tls -- russh's server API would need a full
+    // handler (host key, auth) to stand one up, not attempted this pass.
+    // Manually verified end-to-end against github.com's real SSH endpoint
+    // instead (negotiated curve25519-sha256, correctly reported as
+    // non-PQC -- github.com doesn't currently offer the hybrid KEX).
+    cmd()
+        .args([
+            "scan",
+            "ssh",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "--timeout-secs",
+            "2",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("SSH scan"));
+}
+
+#[test]
 fn inventory_cbom_detects_our_own_pqc_crates() {
     // "cargo test" runs with CWD set to this crate's own directory, which
     // has no Cargo.lock of its own (it's a workspace member) -- the

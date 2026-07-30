@@ -14,10 +14,9 @@
   `test-vectors/acvp/SOURCE.md` for exact scope.
 - **Downgrade attacks**: a hybrid handshake that silently falls back to the
   classical leg alone. Mitigation: `smp-pqc-network`'s TLS scanner
-  (`scan tls`) reports the actual negotiated key-exchange group, not just
-  what was offered. SSH/QUIC scanning is still planned, not implemented (see
-  the SSH note under Platform constraints below for what's actually blocking
-  it — it isn't a missing algorithm).
+  (`scan tls`) and SSH scanner (`scan ssh`) both report the actual
+  negotiated key-exchange algorithm, not just what was offered. QUIC
+  scanning is still planned, not implemented.
 - **Supply-chain drift**: unaudited or unmaintained crypto dependencies pulled
   into a downstream project. Mitigation: `smp-pqc-inventory` generates a
   CycloneDX-style cryptography bill of materials (CBOM) so downstream
@@ -59,16 +58,21 @@
   crate (not `tpm2-rs`, which does not appear to exist under that name — this
   was corrected from an earlier draft of the plan) is the maintained Rust TSS
   binding to evaluate here.
-- **SSH PQC scanning** is not blocked by algorithm support: `russh` 0.62.4
-  already implements `mlkem768x25519-sha256` hybrid KEX
-  (`russh::kex::MLKEM768X25519_SHA256`), matching what OpenSSH 9.x+ offers.
-  What's actually missing is the integration work: `russh`'s client API is
-  async (tokio) where the rest of this CLI is synchronous, and the
-  negotiated-algorithm value (`negotiation::Names.kex`) wasn't confirmed to
-  be exposed on the public `Handle`/`Session` type during a first pass —
-  it may require a custom `Handler` callback or additional API spelunking.
-  Deferred rather than rushed; this is genuinely tractable, just not a
-  quick addition alongside everything else in this pass.
+- **SSH PQC scanning** (`scan ssh`) is implemented. `russh` 0.62.4's
+  `Handler::kex_done` callback exposes the negotiated `Names` (including
+  `names.kex`) directly — the earlier note in this doc about the
+  negotiated-algorithm value possibly not being exposed on the public API
+  was overly pessimistic from a first pass; a deeper look found the right
+  hook. Runs its own single-threaded Tokio runtime internally (the rest of
+  this CLI is synchronous). Does not verify host identity — accepts any
+  server host key, since there's no CA/root-of-trust equivalent for SSH the
+  way `webpki-roots` provides for TLS; treat results as informational about
+  what a host offers, not an authenticated connection. Manually verified
+  against `github.com`'s real SSH endpoint: negotiated `curve25519-sha256`
+  (github.com does not currently offer the hybrid PQC KEX), correctly
+  reported as non-PQC. No local test-server coverage for the positive
+  PQC-detection path (unlike `scan tls`) — `russh`'s server API would need
+  a full handler (host key, auth) to stand one up, not attempted this pass.
 - **Formal verification** (`smp-pqc-verify`): proving PQC primitives from
   scratch is a research-scale effort, out of scope here — this project cites
   [libcrux](https://github.com/cryspen/libcrux)'s existing HACL*-derived
@@ -144,11 +148,13 @@ Read that result correctly:
 
 ## Authorized-use note for network scanning
 
-`smp-pqc-network`'s TLS scanner (`smp-pqc scan tls <host>`) is implemented.
-Only point it at hosts you own or are explicitly authorized to test. There
-is no default host — the CLI always requires one to be specified explicitly
-— and the crate's own test suite only ever scans a local rustls server it
-spins up itself, never an external host, so CI never depends on (or
-inadvertently scans) third-party infrastructure. SSH/QUIC scanning is still
-planned, not implemented; the same authorized-use expectation will apply
-when it lands.
+`smp-pqc-network`'s TLS scanner (`smp-pqc scan tls <host>`) and SSH scanner
+(`smp-pqc scan ssh <host>`) are both implemented. Only point them at hosts
+you own or are explicitly authorized to test. There is no default host —
+the CLI always requires one to be specified explicitly. The TLS scanner's
+test suite only ever scans a local rustls server it spins up itself, never
+an external host; the SSH scanner's automated tests are limited to the
+unreachable-host error path for the same reason (no local test-server
+coverage yet — see the SSH note under Platform constraints). QUIC scanning
+is still planned, not implemented; the same authorized-use expectation will
+apply when it lands.
