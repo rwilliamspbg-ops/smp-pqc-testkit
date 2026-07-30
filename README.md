@@ -6,15 +6,36 @@
  | (___ | \  / | |__) | | |__) | |  | | |
   \___ \| |\/| |  ___/  |  ___/| |  | | |
   ____) | |  | | |      | |    | |__| | |____
- |_____/|_|  |_|_|      |_|     \____/ \_____|
-
- Sovereign Mohawk Post-Quantum Cryptography Test Kit
+ |_____/|_|  |_|_|      |_|     \____/ \_____
+ 
 ```
+
+Sovereign Mohawk Post-Quantum Cryptography Test Kit
 
 A Rust workspace for testing NIST post-quantum cryptography (FIPS 203 ML-KEM,
 FIPS 204 ML-DSA, FIPS 205 SLH-DSA) and classical/PQC hybrids, built as a
 component for the Mohawk-Nexus / SMIP-MWP-Rust / smp-tee-runtime /
 Sovereign-Mohawk-Proto stack.
+
+## Documentation
+
+- [Getting Started](#getting-started)
+- [Status](#status)
+- [Usage](#usage)
+- [Architecture](#architecture)
+- [Roadmap](#roadmap)
+- [Publishing](#publishing)
+- [Contributing](#contributing)
+- [License](#license)
+
+### Getting Started
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed setup instructions,
+coding standards, and contribution guidelines.
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for our community standards.
+
+See [SECURITY.md](SECURITY.md) for our security vulnerability reporting process.
 
 ## Status
 
@@ -137,6 +158,12 @@ cargo test --workspace
 # Lean 4 formal verification proofs (requires a Lean toolchain via elan;
 # see smp-pqc-verify/README.md)
 (cd smp-pqc-verify && lake build)
+
+# Example integrations
+cargo run -p smp-pqc-core --example basic_usage
+cargo run -p smp-pqc-core --example dudect_ml_kem_decap
+cargo run -p smp-pqc-core --example mohawk_nexus_integration
+cargo run -p smp-pqc-core --example smip_mwp_integration
 ```
 
 Supported `test kem` algorithms: `ml-kem-512`, `ml-kem-768`, `ml-kem-1024`.
@@ -150,6 +177,8 @@ Supported `test sig` algorithms: `ml-dsa-44`, `ml-dsa-65`, `ml-dsa-87`, and all
 smp-pqc-testkit/
 ├── smp-pqc-core/       # Safe abstractions over ML-KEM/ML-DSA/SLH-DSA + hybrids
 │   ├── examples/         # basic_usage.rs (library usage), dudect_ml_kem_decap.rs (constant-time check)
+│   │   ├── mohawk_nexus_integration.rs (Mohawk-Nexus integration example)
+│   │   └── smip_mwp_integration.rs (SMIP-MWP-Rust integration example)
 │   ├── fuzz/             # cargo-fuzz target for the algorithm-name parsers (Linux-only)
 │   ├── test-vectors/     # Sampled NIST ACVP-Server reference vectors + provenance (SOURCE.md)
 │   └── tests/acvp.rs     # NIST ACVP known-answer tests
@@ -159,12 +188,17 @@ smp-pqc-testkit/
 ├── smp-pqc-inventory/  # Cryptography inventory / CycloneDX CBOM generation
 ├── smp-pqc-verify/     # Lean 4 project: machine-checked control-flow proofs
 ├── docs/                 # Threat model, architecture notes
-└── examples/             # Mohawk-Nexus / SMIP-MWP-Rust integration demos (still empty -- see examples/README.md)
+├── examples/             # Mohawk-Nexus / SMIP-MWP-Rust integration demos
+├── CONTRIBUTING.md       # Contribution guidelines
+├── CODE_OF_CONDUCT.md    # Community standards
+└── SECURITY.md           # Security policy
 ```
 
-`smp-pqc-tee` (Cargo) doesn't exist yet — TEE attestation is blocked on
-hardware (see the threat model doc), so there's nothing to scaffold until
-that's actually reachable.
+`mohawk_nexus_integration.rs` demonstrates how to integrate the testkit with
+the Mohawk-Nexus networking stack.
+
+`smip_mwp_integration.rs` demonstrates how to integrate the testkit with
+the SMIP-MWP-Rust secure multiparty computation workflow.
 
 ## Roadmap
 
@@ -183,8 +217,18 @@ with `cargo package`, not just asserted), and a `.github/workflows/publish.yml`
 that publishes automatically on a `vX.Y.Z` tag push once a
 `CARGO_REGISTRY_TOKEN` repository secret is added. See
 [RELEASING.md](RELEASING.md) for the full release process.
+
 `smp-pqc-bench` (bench-only, no library) and `smp-pqc-verify` (a Lean 4
 project, not a Cargo crate) are not published.
+
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for
+details on how to contribute to this project, including development setup,
+coding standards, and the pull request process.
+
+Please also review our [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) and
+[SECURITY.md](SECURITY.md) documents.
 
 ## License
 

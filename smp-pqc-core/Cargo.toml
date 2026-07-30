@@ -30,3 +30,19 @@ dudect-bencher = "0.7.0"
 hex = "0.4"
 proptest = "1.11.0"
 rand = "0.8"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "dudect_ml_kem_decap"
+path = "examples/dudect_ml_kem_decap.rs"
+
+[[example]]
+name = "mohawk_nexus_integration"
+path = "examples/mohawk_nexus_integration.rs"
+
+[[example]]
+name = "smip_mwp_integration"
+path = "examples/smip_mwp_integration.rs"
