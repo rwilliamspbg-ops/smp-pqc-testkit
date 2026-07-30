@@ -23,5 +23,7 @@ thiserror.workspace = true
 x25519-dalek = { version = "3.0.0", features = ["getrandom", "static_secrets"] }
 
 [dev-dependencies]
+dudect-bencher = "0.7.0"
 hex = "0.4"
 proptest = "1.11.0"
+rand = "0.8"

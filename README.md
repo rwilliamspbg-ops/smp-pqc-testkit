@@ -72,15 +72,22 @@ Pre-1.0, actively developed. What actually works today:
   and the signature-report aggregation accounting) — not proofs about the
   cryptographic primitives themselves. Runs in CI (`lean-verify` job). See
   `smp-pqc-verify/README.md` for exactly what's proved and what isn't.
+- `smp-pqc-core/examples/dudect_ml_kem_decap.rs`: a real DudeCT-based
+  constant-time check for ML-KEM-768 decapsulation (valid vs. corrupted
+  ciphertext timing). Measured result: no timing leak detected across
+  300,000+ samples on this project's dev machine — see
+  [docs/threat-model.md](docs/threat-model.md)'s side-channel section for
+  the exact numbers and, importantly, what that result does and doesn't
+  prove. One operation, one corruption pattern, not run in CI (shared
+  runners are too noisy for trustworthy timing measurements) — broad
+  constant-time coverage across every operation is still future work.
 
 Still not implemented: SSH/QUIC scanning (blocked on integration work, not
 algorithm support — `russh` already supports the right hybrid KEX, see
-[docs/threat-model.md](docs/threat-model.md)), TEE attestation and AF_XDP
-zero-copy benchmarking (blocked on hardware — even WSL2 doesn't unblock
-these, see the threat model doc), and side-channel/constant-time analysis
-(needs real timing-analysis tooling, not a unit test). The relevant CLI
-subcommands exist but exit with an explicit, specific error rather than
-faking output.
+[docs/threat-model.md](docs/threat-model.md)), and TEE attestation and
+AF_XDP zero-copy benchmarking (blocked on hardware — even WSL2 doesn't
+unblock these, see the threat model doc). The relevant CLI subcommands
+exist but exit with an explicit, specific error rather than faking output.
 
 ## Usage
 
@@ -110,6 +117,10 @@ cargo run -p smp-pqc-cli -- scan tls example.com --pqc-only --report json
 cargo run -p smp-pqc-cli -- inventory .
 cargo run -p smp-pqc-cli -- inventory . --cbom --output report.cdx.json
 
+# Constant-time check: ML-KEM-768 decapsulation, valid vs. corrupted
+# ciphertext (--release matters -- see the file's doc comment)
+cargo run -p smp-pqc-core --release --example dudect_ml_kem_decap
+
 # Run the test suite, including NIST ACVP KAT checks (takes ~100-110s:
 # SLH-DSA-256s alone is ~1-2 min/sign in an unoptimized build without the
 # workspace's dependency opt-level override -- see Cargo.toml and
@@ -131,7 +142,7 @@ Supported `test sig` algorithms: `ml-dsa-44`, `ml-dsa-65`, `ml-dsa-87`, and all
 ```
 smp-pqc-testkit/
 ├── smp-pqc-core/       # Safe abstractions over ML-KEM/ML-DSA/SLH-DSA + hybrids
-│   ├── examples/         # basic_usage.rs: using smp-pqc-core as a plain library
+│   ├── examples/         # basic_usage.rs (library usage), dudect_ml_kem_decap.rs (constant-time check)
 │   ├── fuzz/             # cargo-fuzz target for the algorithm-name parsers (Linux-only)
 │   └── tests/acvp.rs     # NIST ACVP known-answer tests
 ├── smp-pqc-cli/        # smp-pqc binary

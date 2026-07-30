@@ -3,7 +3,30 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.1.0] - Unreleased
+## [Unreleased]
+
+### Added
+
+- A real DudeCT-based constant-time check for ML-KEM-768 decapsulation
+  (`smp-pqc-core/examples/dudect_ml_kem_decap.rs`): tests whether timing
+  depends on ciphertext validity (the implicit-rejection/CCA2 concern).
+  Measured result on this project's dev machine: no timing leak detected
+  across 300,000+ samples (`max t` stayed under 2.7 vs. the t>5 threshold
+  DudeCT's docs treat as a real signal) — see `docs/threat-model.md`'s
+  side-channel section for the full result and its limits. Deliberately not
+  wired into CI: shared runners are too noisy for trustworthy timing
+  measurements.
+
+### Known limitations
+
+- Covers exactly one operation (ML-KEM-768 decapsulate) and one corruption
+  pattern (single flipped byte). ML-KEM-512/1024 and ML-DSA/SLH-DSA
+  sign/verify timing are not covered — extending to signatures needs care,
+  since ML-DSA's rejection-sampling retries cause expected variable-time
+  behavior that isn't itself a vulnerability, and distinguishing that from
+  a real secret-dependent leak needs more rigor than a first pass gives it.
+
+## [0.1.0] - 2026-07-30
 
 Initial release. Every item below is real, working, and tested (`cargo test
 --workspace` currently runs 70 tests across the Rust workspace, plus a

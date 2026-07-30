@@ -23,6 +23,11 @@
   CycloneDX-style cryptography bill of materials (CBOM) so downstream
   consumers know exactly which crypto crates, versions, and PQC/classical
   classifications are in use.
+- **Decapsulation timing oracle**: an adversary measuring how long
+  decapsulation takes to distinguish valid from corrupted ciphertexts,
+  defeating the point of implicit rejection. Mitigation: a DudeCT-based
+  constant-time check (`smp-pqc-core/examples/dudect_ml_kem_decap.rs`) — see
+  the side-channel section below for the measured result and its limits.
 
 ## What this kit does not defend against (out of scope)
 
@@ -88,17 +93,54 @@
   once such an API exists (e.g. for CBOM/key export), it needs its own fuzz
   target and this note should be updated.
 
-## Side-channel / constant-time testing (explicitly not done)
+## Side-channel / constant-time testing
 
-Nothing in this kit currently measures timing side-channels or verifies
-constant-time behavior, and none of the tests here should be read as making
-that claim. Doing this properly needs statistical timing-analysis tooling
-(e.g. [dudect](https://github.com/oreparaz/dudect)-style leakage detection)
-run on fixed hardware with load isolated from other processes — a unit test
-that calls a function and inspects its return value cannot detect a timing
-leak. This is real, valuable future work, not something this pass fakes with
-a test that merely calls the function twice and calls it "constant-time
-verification."
+**One targeted check exists; broad coverage does not.**
+`smp-pqc-core/examples/dudect_ml_kem_decap.rs` uses the
+[DudeCT](https://eprint.iacr.org/2016/1123.pdf) statistical methodology
+(via the [`dudect-bencher`](https://crates.io/crates/dudect-bencher) crate)
+to test whether ML-KEM-768's decapsulation timing depends on ciphertext
+validity — the specific concern behind implicit rejection (see
+`smp-pqc-core/src/kem.rs`'s module docs). Run it yourself:
+
+```bash
+cargo run -p smp-pqc-core --release --example dudect_ml_kem_decap
+```
+
+**Measured result** (this project's Windows dev machine, `--release`,
+20,000 samples per run, three independent runs plus one ~20-second
+`--continuous` run accumulating 300,000+ samples): `max t` consistently
+stayed between 1.3 and 2.7 in absolute value, well under the t > 5 threshold
+DudeCT's own docs describe as a good indication of non-constant-time
+behavior. **No timing leak was detected** under this input distribution, on
+this machine, as of this test's addition.
+
+Read that result correctly:
+- This is evidence of *no detected* leak, not a proof of constant-time-ness
+  in general — DudeCT's own README says exactly this: "it is not possible
+  to prove that a function always runs in constant time."
+- The measurement environment matters. This ran on a general-purpose
+  Windows dev machine, not a quiet, CPU-pinned, frequency-scaling-disabled
+  benchmark rig. That's an argument for the *low* t-values being credible
+  (noise pushes t-values around, and it stayed low anyway across repeated
+  runs and rising sample counts) — but it also means a marginal real leak
+  close to the noise floor could still be masked. Take this as a real,
+  reassuring first check, not a certified clean bill of health.
+- This covers exactly one operation (ML-KEM-768 decapsulate, one
+  corruption pattern: a single flipped byte at a random offset). It says
+  nothing about ML-KEM-512/1024, ML-DSA, or SLH-DSA's sign/verify timing —
+  extending this to signatures needs care: ML-DSA's Fiat-Shamir-with-aborts
+  rejection sampling causes *expected* variable-time behavior that isn't
+  itself a vulnerability (unless the retry count depends on the secret key
+  in an exploitable way), and distinguishing "expected variance from public
+  randomness" from "a real secret-dependent leak" needs more care than a
+  first pass gives it credit for. Left as explicit future work rather than
+  risking a misleading interpretation.
+- Not wired into CI: shared CI runners are virtualized, multi-tenant, and
+  have no CPU pinning, which is exactly the kind of environment that
+  produces false-positive timing differences from noise, not genuine leaks.
+  This is a manual/local diagnostic tool, run deliberately on a quiet
+  machine, not an automated gate.
 
 ## Authorized-use note for network scanning
 
