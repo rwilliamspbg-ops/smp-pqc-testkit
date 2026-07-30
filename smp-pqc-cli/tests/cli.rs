@@ -4,9 +4,56 @@
 
 use assert_cmd::Command;
 use predicates::prelude::*;
+use rcgen::{generate_simple_self_signed, CertifiedKey};
+use rustls::crypto::aws_lc_rs;
+use rustls::pki_types::PrivatePkcs8KeyDer;
+use rustls::{ServerConfig, ServerConnection};
+use std::io;
+use std::net::TcpListener;
+use std::sync::Arc;
 
 fn cmd() -> Command {
     Command::cargo_bin("smp-pqc").unwrap()
+}
+
+/// Starts a local TLS server restricted to the given key-exchange group(s),
+/// accepts one connection, completes the handshake, then exits. Returns the
+/// port it's listening on. Used so `scan tls` integration tests don't depend
+/// on any external host being reachable or PQC-capable.
+fn spawn_test_tls_server(kx_groups: Vec<&'static dyn rustls::crypto::SupportedKxGroup>) -> u16 {
+    let CertifiedKey { cert, key_pair } =
+        generate_simple_self_signed(vec!["localhost".to_string()]).expect("self-signed cert");
+    let key_der = PrivatePkcs8KeyDer::from(key_pair.serialize_der());
+
+    let provider = rustls::crypto::CryptoProvider {
+        kx_groups,
+        ..aws_lc_rs::default_provider()
+    };
+
+    let config = ServerConfig::builder_with_provider(Arc::new(provider))
+        .with_safe_default_protocol_versions()
+        .expect("protocol versions")
+        .with_no_client_auth()
+        .with_single_cert(vec![cert.der().clone()], key_der.into())
+        .expect("server config");
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+    let port = listener.local_addr().expect("local_addr").port();
+
+    std::thread::spawn(move || {
+        let (mut sock, _) = listener.accept().expect("accept");
+        let mut conn = ServerConnection::new(Arc::new(config)).expect("server connection");
+        loop {
+            match conn.complete_io(&mut sock) {
+                Ok(_) if !conn.is_handshaking() => break,
+                Ok(_) => {}
+                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break,
+                Err(_) => break,
+            }
+        }
+    });
+
+    port
 }
 
 #[test]
@@ -113,12 +160,72 @@ fn bench_without_flags_fails_with_criterion_planned_message() {
 }
 
 #[test]
-fn scan_tls_fails_with_planned_phase_message() {
+fn scan_tls_insecure_detects_hybrid_pqc_group_against_local_server() {
+    let port = spawn_test_tls_server(vec![aws_lc_rs::kx_group::X25519MLKEM768]);
+    let assert = cmd()
+        .args([
+            "scan",
+            "tls",
+            "127.0.0.1",
+            "--port",
+            &port.to_string(),
+            "--insecure",
+            "--report",
+            "json",
+        ])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(parsed["is_pqc_hybrid"], true);
+    assert_eq!(parsed["negotiated_group"], "X25519MLKEM768");
+}
+
+#[test]
+fn scan_tls_pqc_only_fails_when_server_has_no_pqc_support() {
+    let port = spawn_test_tls_server(vec![aws_lc_rs::kx_group::X25519]);
     cmd()
-        .args(["scan", "tls", "example.com"])
+        .args([
+            "scan",
+            "tls",
+            "127.0.0.1",
+            "--port",
+            &port.to_string(),
+            "--insecure",
+            "--pqc-only",
+        ])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("not implemented yet"));
+        .stderr(predicate::str::contains(
+            "did not negotiate a PQC/hybrid key-exchange group",
+        ));
+}
+
+#[test]
+fn scan_tls_without_insecure_rejects_self_signed_certificate() {
+    let port = spawn_test_tls_server(vec![aws_lc_rs::kx_group::X25519MLKEM768]);
+    cmd()
+        .args(["scan", "tls", "127.0.0.1", "--port", &port.to_string()])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("TLS scan"));
+}
+
+#[test]
+fn scan_tls_unreachable_host_fails_clearly() {
+    cmd()
+        .args([
+            "scan",
+            "tls",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "--timeout-secs",
+            "2",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("TLS scan"));
 }
 
 #[test]

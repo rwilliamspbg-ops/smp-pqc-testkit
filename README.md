@@ -49,14 +49,26 @@ Early scaffold. What actually works today:
   underlying RustCrypto crates against NIST's ground truth, not just internal
   self-consistency — see [test-vectors/acvp/SOURCE.md](test-vectors/acvp/SOURCE.md)
   for exactly what's covered and what isn't (no prehash mode).
+- `smp-pqc-network` (`scan tls`): a real TLS 1.3 handshake scanner reporting
+  which key-exchange group a server negotiates, using rustls 0.23's native
+  ML-KEM/hybrid support (`X25519MLKEM768`, `secp256r1MLKEM768`, pure
+  `MLKEM512/768/1024` via the `aws-lc-rs` crypto provider — no separate PQC
+  crate needed). Validates certificates against the Mozilla root store by
+  default; `--insecure` skips validation for scanning local test
+  infrastructure with a self-signed certificate. Tested against a local
+  rustls server (no external network dependency in CI) and manually verified
+  against real production infrastructure. **Only scan hosts you own or are
+  explicitly authorized to test.**
 
-Everything else named in the roadmap below — TLS/SSH scanning, CBOM
-inventory, formal verification, TEE attestation, AF_XDP benchmarking,
-side-channel/constant-time analysis — is **not implemented yet**. The
-relevant CLI subcommands exist but exit with an explicit "not implemented,
-planned for Phase N" error rather than faking output; see
+Everything else named in the roadmap below — SSH scanning, CBOM inventory,
+formal verification, TEE attestation, AF_XDP benchmarking, side-channel/
+constant-time analysis — is **not implemented yet**. The relevant CLI
+subcommands exist but exit with an explicit "not implemented, planned for
+Phase N" error rather than faking output; see
 [docs/threat-model.md](docs/threat-model.md) for why each of these is
-harder than it looks and what real scope looks like.
+harder than it looks (AF_XDP and TEE, in particular, are blocked by hardware
+limitations even under WSL2 — see the threat model doc) and what real scope
+looks like.
 
 ## Usage
 
@@ -78,6 +90,10 @@ cargo run -p smp-pqc-cli -- test sig slh-dsa-shake-128f --iterations 20 --report
 cargo bench -p smp-pqc-bench --bench kem
 cargo bench -p smp-pqc-bench --bench sig
 
+# TLS PQC/hybrid handshake scan (only scan hosts you own or are authorized
+# to test)
+cargo run -p smp-pqc-cli -- scan tls example.com --pqc-only --report json
+
 # Run the test suite, including NIST ACVP KAT checks (takes ~100-110s:
 # SLH-DSA-256s alone is ~1-2 min/sign in an unoptimized build without the
 # workspace's dependency opt-level override -- see Cargo.toml and
@@ -98,14 +114,15 @@ smp-pqc-testkit/
 │   └── fuzz/           # cargo-fuzz target for the algorithm-name parsers (Linux-only)
 ├── smp-pqc-cli/      # smp-pqc binary
 ├── smp-pqc-bench/    # Criterion benchmarks (keygen/encap/decap, keygen/sign/verify)
+├── smp-pqc-network/  # TLS PQC/hybrid handshake scanning (rustls + aws-lc-rs)
 ├── test-vectors/acvp/ # Sampled NIST ACVP-Server reference vectors + provenance (SOURCE.md)
 ├── docs/               # Threat model, architecture notes
 └── examples/           # (planned) Mohawk-Nexus / SMIP-MWP-Rust integration demos
 ```
 
-Crates not yet created (`smp-pqc-network`, `smp-pqc-tee`, `smp-pqc-inventory`,
-`smp-pqc-verify`) will be split out of the workspace when their phase of work
-actually starts, rather than scaffolded empty up front.
+Crates not yet created (`smp-pqc-tee`, `smp-pqc-inventory`, `smp-pqc-verify`)
+will be split out of the workspace when their phase of work actually starts,
+rather than scaffolded empty up front.
 
 ## Roadmap
 

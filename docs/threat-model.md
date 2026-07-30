@@ -9,12 +9,13 @@
 - **Broken or non-conformant PQC implementations**: a library that claims
   FIPS 203/204/205 support but has a subtly wrong encoding, an RNG misuse, or
   fails on edge-case parameter sets. Mitigation: roundtrip + tamper-detection
-  tests across all standardized parameter sets, and (planned) NIST ACVP known-
-  answer tests.
+  tests across all standardized parameter sets, and NIST ACVP known-answer
+  tests against real reference vectors (`smp-pqc-core/tests/acvp.rs`) — see
+  `test-vectors/acvp/SOURCE.md` for exact scope.
 - **Downgrade attacks**: a hybrid handshake that silently falls back to the
-  classical leg alone. Mitigation: (planned, Phase 3) network scanners that
-  verify the negotiated group is actually the PQC/hybrid one, not just
-  offered.
+  classical leg alone. Mitigation: `smp-pqc-network`'s TLS scanner
+  (`scan tls`) reports the actual negotiated key-exchange group, not just
+  what was offered. SSH/QUIC scanning is still planned, not implemented.
 - **Supply-chain drift**: unaudited or unmaintained crypto dependencies pulled
   into a downstream project. Mitigation: (planned, Phase 4) CBOM generation so
   downstream consumers know exactly which crypto primitives and versions are
@@ -33,10 +34,19 @@
 ## Platform constraints (read before planning Phase 3/4 work)
 
 - **AF_XDP** (planned `smp-pqc-network` zero-copy benchmarking) requires a
-  Linux kernel with XDP/eBPF support. It will not build or run on Windows or
-  macOS. Development must happen on Linux directly, in WSL2, or in Linux CI.
+  Linux kernel with XDP/eBPF support *and* a NIC driver that supports XDP
+  offload. WSL2 has the former (a real, modern kernel with BTF support) but
+  not the latter: its virtual NIC uses the `hv_netvsc` Hyper-V synthetic
+  driver, which only supports AF_XDP's generic/SKB software-emulation mode,
+  not true zero-copy. Building "zero-copy benchmarking" on that foundation
+  would silently misrepresent the result, so this stays unimplemented until
+  there's access to bare-metal Linux with an XDP-capable NIC (e.g. mlx5,
+  i40e, ixgbe) — WSL2 alone does not unblock this.
 - **TEE attestation** (planned `smp-pqc-tee`) requires TEE-capable hardware
-  (Intel SGX, AMD SEV, Arm TrustZone) and is Linux-only in practice.
+  (Intel SGX, AMD SEV, Arm TrustZone) with direct enclave/hardware passthrough.
+  A standard WSL2 VM doesn't expose this either — same category of blocker as
+  AF_XDP above, and for the same reason: virtualization gets you a real Linux
+  kernel, not real hardware capabilities the kernel would otherwise expose.
 - **TPM access** depends on OS/hardware TPM availability; the `tss-esapi`
   crate (not `tpm2-rs`, which does not appear to exist under that name — this
   was corrected from an earlier draft of the plan) is the maintained Rust TSS
@@ -72,9 +82,13 @@ leak. This is real, valuable future work, not something this pass fakes with
 a test that merely calls the function twice and calls it "constant-time
 verification."
 
-## Authorized-use note for network scanning (planned Phase 3)
+## Authorized-use note for network scanning
 
-When TLS/SSH PQC scanning lands, only point it at hosts you own or are
-explicitly authorized to test. The CLI's `scan` subcommand documentation and
-examples should default to `localhost`/owned test infrastructure, not
-arbitrary third-party domains.
+`smp-pqc-network`'s TLS scanner (`smp-pqc scan tls <host>`) is implemented.
+Only point it at hosts you own or are explicitly authorized to test. There
+is no default host — the CLI always requires one to be specified explicitly
+— and the crate's own test suite only ever scans a local rustls server it
+spins up itself, never an external host, so CI never depends on (or
+inadvertently scans) third-party infrastructure. SSH/QUIC scanning is still
+planned, not implemented; the same authorized-use expectation will apply
+when it lands.

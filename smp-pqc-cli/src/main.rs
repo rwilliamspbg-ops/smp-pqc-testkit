@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use smp_pqc_core::{kem, sig};
+use std::time::Duration;
 
 #[derive(Parser)]
 #[command(name = "smp-pqc", version, about = "Sovereign Mohawk PQC test kit")]
@@ -75,11 +76,23 @@ enum TestKind {
 
 #[derive(Subcommand)]
 enum ScanKind {
-    /// Scan a TLS endpoint's negotiated groups for PQC/hybrid key exchange support.
+    /// Scan a TLS endpoint's negotiated group for PQC/hybrid key exchange support.
+    ///
+    /// Only scan hosts you own or are explicitly authorized to test.
     Tls {
         host: String,
+        #[arg(long, default_value_t = 443)]
+        port: u16,
+        /// Exit non-zero if the negotiated group is not PQC/hybrid.
         #[arg(long)]
         pqc_only: bool,
+        /// Skip certificate validation. Only use against hosts you control
+        /// (e.g. a local test server with a self-signed certificate) --
+        /// this provides no protection against a man-in-the-middle.
+        #[arg(long)]
+        insecure: bool,
+        #[arg(long, default_value_t = 10)]
+        timeout_secs: u64,
         #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
         report: ReportFormat,
     },
@@ -109,11 +122,33 @@ fn main() -> Result<()> {
             );
         }
         Command::Scan { kind } => match kind {
-            ScanKind::Tls { host, .. } => {
-                bail!(
-                    "TLS scanning for '{host}' is not implemented yet (planned for Phase 3). \
-                     When implemented, only scan hosts you own or are authorized to test."
-                );
+            ScanKind::Tls {
+                host,
+                port,
+                pqc_only,
+                insecure,
+                timeout_secs,
+                report,
+            } => {
+                let timeout = Duration::from_secs(timeout_secs);
+                let r = if insecure {
+                    smp_pqc_network::scan::scan_tls_insecure(&host, port, timeout)
+                } else {
+                    smp_pqc_network::scan::scan_tls(&host, port, timeout)
+                };
+                let passed = r.error.is_none() && (!pqc_only || r.is_pqc());
+                print_report(&r, passed, report)?;
+                if let Some(err) = &r.error {
+                    bail!("TLS scan of {host}:{port} failed: {err}");
+                }
+                if pqc_only && !r.is_pqc() {
+                    bail!(
+                        "{host}:{port} did not negotiate a PQC/hybrid key-exchange group \
+                         (got {:?})",
+                        r.negotiated_group
+                    );
+                }
+                Ok(())
             }
         },
         Command::Inventory { .. } => {

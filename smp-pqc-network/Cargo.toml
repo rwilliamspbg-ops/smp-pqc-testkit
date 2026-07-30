@@ -1,0 +1,17 @@
+[package]
+name = "smp-pqc-network"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "TLS PQC/hybrid key-exchange handshake scanning"
+
+[dependencies]
+rustls = "0.23"
+webpki-roots = "1"
+rustls-pki-types = "1"
+anyhow.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+rcgen = "0.13"

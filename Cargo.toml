@@ -4,6 +4,7 @@ members = [
     "smp-pqc-core",
     "smp-pqc-cli",
     "smp-pqc-bench",
+    "smp-pqc-network",
 ]
 
 [workspace.package]
