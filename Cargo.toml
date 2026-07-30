@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "smp-pqc-core",
     "smp-pqc-cli",
+    "smp-pqc-bench",
 ]
 
 [workspace.package]
@@ -17,3 +18,12 @@ serde_json = "1"
 anyhow = "1"
 thiserror = "2"
 clap = { version = "4", features = ["derive"] }
+
+# SLH-DSA's hash-tree computation is hash-bound and, unlike most crates, pays
+# an enormous debug-build penalty: SLH-DSA-SHAKE-256s went from ~1.8s/sign in
+# release to 2+ MINUTES/sign unoptimized. cargo test/build use the `dev`
+# profile by default, so without this override the test suite would be
+# unusable. Optimize dependency code while keeping our own crates' debug info
+# and fast incremental rebuilds.
+[profile.dev.package."*"]
+opt-level = 3

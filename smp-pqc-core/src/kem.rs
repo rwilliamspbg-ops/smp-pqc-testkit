@@ -1,18 +1,37 @@
 //! Key Encapsulation Mechanism roundtrip testing: ML-KEM (FIPS 203) and an
 //! X25519 + ML-KEM-768 classical/PQC hybrid.
+//!
+//! # Threat model note
+//!
+//! ML-KEM is defined with *implicit rejection* (FIPS 203 Algorithm 18): a
+//! decapsulation call never returns an error, even for a corrupted or
+//! adversarially-crafted ciphertext. Instead it deterministically derives a
+//! pseudorandom "junk" key from the ciphertext and the decapsulation key's
+//! secret seed, so a bad ciphertext silently produces a shared key that
+//! doesn't match the encapsulator's — this is what stops a decapsulation
+//! oracle from being usable as a distinguisher (a CCA2 concern). Callers
+//! must never treat "decapsulate returned Ok" as "the ciphertext was
+//! genuine" — the only valid check is comparing against the expected key
+//! (e.g. via a subsequent authenticated message), which is exactly what
+//! [`tests::ml_kem_768_tampered_ciphertext_is_implicitly_rejected`] asserts.
 
 use ml_kem::kem::{Decapsulate, Encapsulate, Kem};
 use ml_kem::{MlKem1024, MlKem512, MlKem768};
 use serde::{Deserialize, Serialize};
 
+/// A NIST FIPS 203 ML-KEM parameter set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum KemAlgorithm {
+    /// Security category 1 (~128-bit classical security).
     MlKem512,
+    /// Security category 3 (~192-bit classical security); NIST's recommended default.
     MlKem768,
+    /// Security category 5 (~256-bit classical security).
     MlKem1024,
 }
 
 impl KemAlgorithm {
+    /// The canonical FIPS 203 name for this parameter set, e.g. `"ML-KEM-768"`.
     pub fn name(&self) -> &'static str {
         match self {
             KemAlgorithm::MlKem512 => "ML-KEM-512",
@@ -46,6 +65,7 @@ pub struct KemReport {
 }
 
 impl KemReport {
+    /// True only if every iteration succeeded and none were skipped/errored.
     pub fn all_passed(&self) -> bool {
         self.failures == 0 && self.successes == self.iterations
     }
@@ -62,6 +82,10 @@ macro_rules! ml_kem_roundtrip {
     }};
 }
 
+/// Run `iterations` independent keygen/encapsulate/decapsulate cycles for
+/// `algorithm` and report how many produced matching shared keys. A fresh
+/// keypair is generated every iteration (this measures the algorithm across
+/// many independent keys, not the same key reused).
 pub fn run(algorithm: KemAlgorithm, iterations: usize) -> KemReport {
     let mut successes = 0;
     let mut failures = 0;
@@ -97,6 +121,10 @@ pub struct HybridKemReport {
     pub combined_secret_len: usize,
 }
 
+/// Run `iterations` independent hybrid (X25519 + ML-KEM-768) roundtrips.
+/// Both legs must independently agree for an iteration to count as a
+/// success; see the module docs for why the combiner here is illustrative
+/// rather than a standards-track KDF.
 pub fn run_hybrid(iterations: usize) -> HybridKemReport {
     let mut successes = 0;
     let mut failures = 0;
@@ -172,6 +200,104 @@ mod tests {
             "ml-kem-768".parse::<KemAlgorithm>().unwrap(),
             KemAlgorithm::MlKem768
         );
+        assert_eq!(
+            "ML_KEM_512".parse::<KemAlgorithm>().unwrap(),
+            KemAlgorithm::MlKem512
+        );
+        assert_eq!(
+            "mlkem1024".parse::<KemAlgorithm>().unwrap(),
+            KemAlgorithm::MlKem1024
+        );
+    }
+
+    #[test]
+    fn algorithm_from_str_rejects_garbage_and_empty() {
         assert!("bogus".parse::<KemAlgorithm>().is_err());
+        assert!("".parse::<KemAlgorithm>().is_err());
+        assert!("ml-kem-2048".parse::<KemAlgorithm>().is_err());
+    }
+
+    #[test]
+    fn zero_iterations_reports_trivially_passed_and_no_work_done() {
+        // Documents current behavior rather than asserting it's ideal: 0
+        // iterations means 0 successes == 0 iterations, so all_passed() is
+        // true. A caller must check `iterations > 0` separately if it needs
+        // to distinguish "passed" from "nothing was tested".
+        let report = run(KemAlgorithm::MlKem512, 0);
+        assert!(report.all_passed());
+        assert_eq!(report.successes, 0);
+        assert_eq!(report.failures, 0);
+    }
+
+    /// Adversarial test: a corrupted ciphertext must not decapsulate to the
+    /// encapsulator's original shared key. See the module-level threat model
+    /// note on implicit rejection.
+    #[test]
+    fn ml_kem_768_tampered_ciphertext_is_implicitly_rejected() {
+        for byte_idx in [0usize, 1, 100, 500, 1087] {
+            let (dk, ek) = MlKem768::generate_keypair();
+            let (mut ct, k_send) = ek.encapsulate();
+            let idx = byte_idx % ct.len();
+            ct[idx] ^= 0xFF;
+            let k_recv = dk.decapsulate(&ct);
+            assert_ne!(
+                k_send, k_recv,
+                "tampered ciphertext (byte {idx} flipped) must not decapsulate to the original key"
+            );
+        }
+    }
+
+    #[test]
+    fn ml_kem_768_wrong_decapsulation_key_is_rejected() {
+        let (_dk_a, ek_a) = MlKem768::generate_keypair();
+        let (dk_b, _ek_b) = MlKem768::generate_keypair();
+        let (ct, k_send) = ek_a.encapsulate();
+        // Decapsulating Alice's ciphertext with Bob's unrelated key must not
+        // reproduce Alice's shared key.
+        let k_wrong = dk_b.decapsulate(&ct);
+        assert_ne!(k_send, k_wrong);
+    }
+
+    #[test]
+    fn hybrid_hides_neither_leg_secret_incorrectly_zero() {
+        // Sanity/regression guard: the combined secret must actually be the
+        // concatenation length of both legs (32-byte X25519 + ML-KEM-768's
+        // shared-key size), not an accidentally-truncated or empty buffer.
+        let report = run_hybrid(1);
+        assert_eq!(report.combined_secret_len, 32 + 32);
+    }
+}
+
+#[cfg(test)]
+mod proptests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #![proptest_config(ProptestConfig::with_cases(64))]
+
+        /// Property: for any byte position and any non-zero XOR mask, flipping
+        /// a single byte of an ML-KEM-768 ciphertext changes the decapsulated
+        /// key (implicit rejection holds across the whole ciphertext, not
+        /// just at hand-picked offsets).
+        #[test]
+        fn ml_kem_768_any_single_byte_flip_is_rejected(byte_idx in 0usize..1088, flip in 1u8..=255) {
+            let (dk, ek) = MlKem768::generate_keypair();
+            let (mut ct, k_send) = ek.encapsulate();
+            let idx = byte_idx % ct.len();
+            ct[idx] ^= flip;
+            let k_recv = dk.decapsulate(&ct);
+            prop_assert_ne!(k_send, k_recv);
+        }
+
+        /// Property: ML-KEM-512/768/1024 roundtrips succeed for any small
+        /// iteration count (exercises fresh randomness per proptest case,
+        /// unlike the fixed-count unit tests above).
+        #[test]
+        fn ml_kem_roundtrip_holds_for_any_small_iteration_count(iterations in 1usize..8) {
+            for algorithm in [KemAlgorithm::MlKem512, KemAlgorithm::MlKem768, KemAlgorithm::MlKem1024] {
+                prop_assert!(run(algorithm, iterations).all_passed());
+            }
+        }
     }
 }

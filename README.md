@@ -27,11 +27,28 @@ Early scaffold. What actually works today:
 - `smp-pqc-cli` (`smp-pqc` binary): `test kem` and `test sig` subcommands run
   real correctness roundtrips (keygen/encapsulate-or-sign/decapsulate-or-verify,
   including tamper-detection checks for signatures).
+- `smp-pqc-bench`: real Criterion benchmarks for keygen/encapsulate/decapsulate
+  and keygen/sign/verify across every ML-KEM/ML-DSA/SLH-DSA parameter set,
+  plus an X25519 classical baseline for comparison.
+- Test suite: 95.9% line coverage / 100% function coverage across
+  `smp-pqc-core` + `smp-pqc-cli` (measured with `cargo llvm-cov`, not
+  asserted), including proptest-based property tests (arbitrary-message
+  signing, single-byte ciphertext/message tamper rejection across randomized
+  offsets), adversarial tests (wrong keys, corrupted signature/ciphertext
+  bytes, ML-KEM implicit rejection), and CLI-level integration tests via
+  `assert_cmd`.
+- `smp-pqc-core/fuzz`: a `cargo-fuzz` target for the algorithm-name parsers.
+  Narrow in scope (there's no byte-serialization API to fuzz yet — see
+  [docs/threat-model.md](docs/threat-model.md)) and Linux-only in practice;
+  runs in CI, not on this project's Windows dev machine.
 
-Everything else named in the roadmap below — benchmarking, TLS/SSH scanning,
-CBOM inventory, formal verification, TEE attestation — is **not implemented
-yet**. Those subcommands exist in the CLI surface but exit with an explicit
-"not implemented, planned for Phase N" error rather than faking output.
+Everything else named in the roadmap below — TLS/SSH scanning, CBOM
+inventory, formal verification, TEE attestation, AF_XDP benchmarking,
+side-channel/constant-time analysis — is **not implemented yet**. The
+relevant CLI subcommands exist but exit with an explicit "not implemented,
+planned for Phase N" error rather than faking output; see
+[docs/threat-model.md](docs/threat-model.md) for why each of these is
+harder than it looks and what real scope looks like.
 
 ## Usage
 
@@ -47,6 +64,16 @@ cargo run -p smp-pqc-cli -- test kem ml-kem-768 --hybrid --iterations 1000
 # Signature roundtrip + tamper-detection test
 cargo run -p smp-pqc-cli -- test sig ml-dsa-65 --iterations 1000
 cargo run -p smp-pqc-cli -- test sig slh-dsa-shake-128f --iterations 20 --report json
+
+# Criterion benchmarks (release mode; several minutes for the full suite due
+# to slow SLH-DSA "s" variants -- see smp-pqc-bench/benches/sig.rs)
+cargo bench -p smp-pqc-bench --bench kem
+cargo bench -p smp-pqc-bench --bench sig
+
+# Run the test suite (takes ~70-90s: SLH-DSA-256s alone is ~1-2 min/sign in
+# an unoptimized build without the workspace's dependency opt-level override
+# -- see Cargo.toml and smp-pqc-core/src/sig.rs for why)
+cargo test --workspace
 ```
 
 Supported `test kem` algorithms: `ml-kem-512`, `ml-kem-768`, `ml-kem-1024`.
@@ -59,15 +86,17 @@ Supported `test sig` algorithms: `ml-dsa-44`, `ml-dsa-65`, `ml-dsa-87`, and all
 ```
 smp-pqc-testkit/
 ├── smp-pqc-core/     # Safe abstractions over ML-KEM/ML-DSA/SLH-DSA + hybrids
+│   └── fuzz/           # cargo-fuzz target for the algorithm-name parsers (Linux-only)
 ├── smp-pqc-cli/      # smp-pqc binary
+├── smp-pqc-bench/    # Criterion benchmarks (keygen/encap/decap, keygen/sign/verify)
 ├── test-vectors/      # (planned) NIST ACVP KATs
 ├── docs/               # Threat model, architecture notes
 └── examples/           # (planned) Mohawk-Nexus / SMIP-MWP-Rust integration demos
 ```
 
-Crates not yet created (`smp-pqc-bench`, `smp-pqc-network`, `smp-pqc-tee`,
-`smp-pqc-inventory`, `smp-pqc-verify`) will be split out of the workspace when
-their phase of work actually starts, rather than scaffolded empty up front.
+Crates not yet created (`smp-pqc-network`, `smp-pqc-tee`, `smp-pqc-inventory`,
+`smp-pqc-verify`) will be split out of the workspace when their phase of work
+actually starts, rather than scaffolded empty up front.
 
 ## Roadmap
 

@@ -48,6 +48,29 @@
   formal proofs for primitives, and (b) writing TLA+ specs for
   protocol-level state machines this project actually controls (e.g. the
   hybrid handshake sequencing), not the underlying lattice/hash math.
+- **Fuzzing** (`smp-pqc-core/fuzz`): `cargo-fuzz` requires a nightly toolchain
+  and libFuzzer/AddressSanitizer, neither of which is usable on
+  `x86_64-pc-windows-msvc`. The `parse_algorithm_names` fuzz target cannot be
+  run on this project's primary Windows dev machine; CI runs it on
+  `ubuntu-latest` instead (see `.github/workflows/ci.yml`'s
+  `fuzz-smoke-test` job). Its scope is also narrow by design: it fuzzes the
+  `FromStr` algorithm-name parsers, not any crypto encode/decode path, since
+  smp-pqc-core doesn't expose byte-level key/ciphertext/signature
+  serialization yet. That's a real gap for a "gold standard" test kit —
+  once such an API exists (e.g. for CBOM/key export), it needs its own fuzz
+  target and this note should be updated.
+
+## Side-channel / constant-time testing (explicitly not done)
+
+Nothing in this kit currently measures timing side-channels or verifies
+constant-time behavior, and none of the tests here should be read as making
+that claim. Doing this properly needs statistical timing-analysis tooling
+(e.g. [dudect](https://github.com/oreparaz/dudect)-style leakage detection)
+run on fixed hardware with load isolated from other processes — a unit test
+that calls a function and inspects its return value cannot detect a timing
+leak. This is real, valuable future work, not something this pass fakes with
+a test that merely calls the function twice and calls it "constant-time
+verification."
 
 ## Authorized-use note for network scanning (planned Phase 3)
 

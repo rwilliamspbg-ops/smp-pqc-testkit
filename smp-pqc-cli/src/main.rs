@@ -153,25 +153,12 @@ fn run_test(kind: TestKind) -> Result<()> {
                 }
                 let r = kem::run_hybrid(iterations);
                 print_report(&r, r.failures == 0, report)?;
-                if r.failures != 0 {
-                    bail!(
-                        "{} of {} hybrid KEM roundtrips failed",
-                        r.failures,
-                        r.iterations
-                    );
-                }
+                check_hybrid_report(&r)?;
             } else {
                 let algorithm: kem::KemAlgorithm = algo.parse()?;
                 let r = kem::run(algorithm, iterations);
                 print_report(&r, r.all_passed(), report)?;
-                if !r.all_passed() {
-                    bail!(
-                        "{} of {} {} roundtrips failed",
-                        r.failures,
-                        r.iterations,
-                        algorithm.name()
-                    );
-                }
+                check_kem_report(&r)?;
             }
             Ok(())
         }
@@ -183,18 +170,52 @@ fn run_test(kind: TestKind) -> Result<()> {
             let algorithm: sig::SigAlgorithm = algo.parse()?;
             let r = sig::run(algorithm, iterations);
             print_report(&r, r.all_passed(), report)?;
-            if !r.all_passed() {
-                bail!(
-                    "{} verify failures, {} tamper-acceptances out of {} iterations for {}",
-                    r.verify_failures,
-                    r.tamper_acceptances,
-                    r.iterations,
-                    algorithm.name()
-                );
-            }
+            check_sig_report(&r)?;
             Ok(())
         }
     }
+}
+
+/// Turns a failed [`kem::KemReport`] into an error with a human-readable
+/// count. Split out from `run_test` so the failure-message formatting is
+/// unit-testable against a synthetic failing report, without needing to
+/// actually break a KEM implementation to exercise this path.
+fn check_kem_report(r: &kem::KemReport) -> Result<()> {
+    if !r.all_passed() {
+        bail!(
+            "{} of {} {} roundtrips failed",
+            r.failures,
+            r.iterations,
+            r.algorithm.name()
+        );
+    }
+    Ok(())
+}
+
+/// See [`check_kem_report`]; same rationale for the hybrid KEM path.
+fn check_hybrid_report(r: &kem::HybridKemReport) -> Result<()> {
+    if r.failures != 0 {
+        bail!(
+            "{} of {} hybrid KEM roundtrips failed",
+            r.failures,
+            r.iterations
+        );
+    }
+    Ok(())
+}
+
+/// See [`check_kem_report`]; same rationale for the signature path.
+fn check_sig_report(r: &sig::SigReport) -> Result<()> {
+    if !r.all_passed() {
+        bail!(
+            "{} verify failures, {} tamper-acceptances out of {} iterations for {}",
+            r.verify_failures,
+            r.tamper_acceptances,
+            r.iterations,
+            r.algorithm.name()
+        );
+    }
+    Ok(())
 }
 
 fn print_report<T: serde::Serialize + std::fmt::Debug>(
@@ -210,4 +231,60 @@ fn print_report<T: serde::Serialize + std::fmt::Debug>(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // These synthesize a failing report directly rather than driving a real
+    // algorithm to fail (which would mean the algorithm is actually broken),
+    // to check the CLI's own error-message formatting in isolation.
+
+    #[test]
+    fn check_kem_report_passes_silently_when_all_passed() {
+        let r = kem::run(kem::KemAlgorithm::MlKem512, 3);
+        assert!(check_kem_report(&r).is_ok());
+    }
+
+    #[test]
+    fn check_kem_report_errors_with_counts_and_algorithm_name_on_failure() {
+        let r = kem::KemReport {
+            algorithm: kem::KemAlgorithm::MlKem768,
+            iterations: 10,
+            successes: 7,
+            failures: 3,
+        };
+        let err = check_kem_report(&r).unwrap_err().to_string();
+        assert!(err.contains("3 of 10"));
+        assert!(err.contains("ML-KEM-768"));
+    }
+
+    #[test]
+    fn check_sig_report_errors_on_tamper_acceptance() {
+        let r = sig::SigReport {
+            algorithm: sig::SigAlgorithm::MlDsa65,
+            iterations: 5,
+            verify_successes: 5,
+            verify_failures: 0,
+            tamper_rejections: 4,
+            tamper_acceptances: 1,
+        };
+        let err = check_sig_report(&r).unwrap_err().to_string();
+        assert!(err.contains("0 verify failures"));
+        assert!(err.contains("1 tamper-acceptances"));
+        assert!(err.contains("ML-DSA-65"));
+    }
+
+    #[test]
+    fn check_hybrid_report_errors_with_counts_on_failure() {
+        let r = kem::HybridKemReport {
+            iterations: 8,
+            successes: 6,
+            failures: 2,
+            combined_secret_len: 64,
+        };
+        let err = check_hybrid_report(&r).unwrap_err().to_string();
+        assert!(err.contains("2 of 8"));
+    }
 }

@@ -34,3 +34,19 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # cargo-fuzz needs nightly + libFuzzer/ASan, which aren't usable on the
+  # windows-msvc target -- Linux-only, and deliberately not part of the
+  # build-test matrix above.
+  fuzz-smoke-test:
+    name: fuzz smoke test (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-fuzz --locked
+      - run: cargo fuzz build parse_algorithm_names
+        working-directory: smp-pqc-core
+      - run: cargo fuzz run parse_algorithm_names -- -max_total_time=30
+        working-directory: smp-pqc-core

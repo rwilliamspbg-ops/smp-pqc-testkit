@@ -1,0 +1,24 @@
+[package]
+name = "smp-pqc-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Criterion micro-benchmarks for smp-pqc-core's KEM and signature operations"
+publish = false
+
+[dev-dependencies]
+criterion = { version = "0.8.2", features = ["html_reports"] }
+ml-dsa = { version = "0.1.1", features = ["zeroize"] }
+ml-kem = { version = "0.3.2", features = ["getrandom", "zeroize"] }
+rand = "0.8"
+slh-dsa = "0.1.0"
+x25519-dalek = { version = "3.0.0", features = ["getrandom", "static_secrets"] }
+
+[[bench]]
+name = "kem"
+harness = false
+
+[[bench]]
+name = "sig"
+harness = false

@@ -24,3 +24,4 @@ x25519-dalek = { version = "3.0.0", features = ["getrandom", "static_secrets"] }
 
 [dev-dependencies]
 hex = "0.4"
+proptest = "1.11.0"
