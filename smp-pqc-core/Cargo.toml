@@ -42,3 +42,7 @@ path = "examples/dudect_ml_kem_decap.rs"
 [[example]]
 name = "mohawk_nexus_integration"
 path = "examples/mohawk_nexus_integration.rs"
+
+[[example]]
+name = "smip_mwp_integration"
+path = "examples/smip_mwp_integration.rs"

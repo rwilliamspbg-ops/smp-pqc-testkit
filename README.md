@@ -6,7 +6,7 @@
  | (___ | \  / | |__) | | |__) | |  | | |
   \___ \| |\/| |  ___/  |  ___/| |  | | |
   ____) | |  | | |      | |    | |__| | |____
- |_____/|_|  |_|_|      |_|     \____/ \_____|
+ |_____/|_|  |_|_|      |_|     \____/ \_____
  
 ```
 
@@ -163,6 +163,7 @@ cargo test --workspace
 cargo run -p smp-pqc-core --example basic_usage
 cargo run -p smp-pqc-core --example dudect_ml_kem_decap
 cargo run -p smp-pqc-core --example mohawk_nexus_integration
+cargo run -p smp-pqc-core --example smip_mwp_integration
 ```
 
 Supported `test kem` algorithms: `ml-kem-512`, `ml-kem-768`, `ml-kem-1024`.
@@ -176,7 +177,8 @@ Supported `test sig` algorithms: `ml-dsa-44`, `ml-dsa-65`, `ml-dsa-87`, and all
 smp-pqc-testkit/
 ├── smp-pqc-core/       # Safe abstractions over ML-KEM/ML-DSA/SLH-DSA + hybrids
 │   ├── examples/         # basic_usage.rs (library usage), dudect_ml_kem_decap.rs (constant-time check)
-│   │   └── mohawk_nexus_integration.rs (Mohawk-Nexus integration example)
+│   │   ├── mohawk_nexus_integration.rs (Mohawk-Nexus integration example)
+│   │   └── smip_mwp_integration.rs (SMIP-MWP-Rust integration example)
 │   ├── fuzz/             # cargo-fuzz target for the algorithm-name parsers (Linux-only)
 │   ├── test-vectors/     # Sampled NIST ACVP-Server reference vectors + provenance (SOURCE.md)
 │   └── tests/acvp.rs     # NIST ACVP known-answer tests
@@ -194,6 +196,9 @@ smp-pqc-testkit/
 
 `mohawk_nexus_integration.rs` demonstrates how to integrate the testkit with
 the Mohawk-Nexus networking stack.
+
+`smip_mwp_integration.rs` demonstrates how to integrate the testkit with
+the SMIP-MWP-Rust secure multiparty computation workflow.
 
 ## Roadmap
 
