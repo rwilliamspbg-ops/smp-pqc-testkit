@@ -693,6 +693,7 @@ dependencies = [
  "rand_core 0.10.1",
  "serde",
  "serde_json",
+ "signature 2.3.0-pre.4",
  "slh-dsa",
  "thiserror",
  "x25519-dalek",

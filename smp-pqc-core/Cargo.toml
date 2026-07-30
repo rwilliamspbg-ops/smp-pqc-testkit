@@ -13,7 +13,11 @@ ml-kem = { version = "0.3.2", features = ["getrandom", "zeroize"] }
 rand = "0.8"
 rand_core = "0.10.1"
 serde.workspace = true
+# Pinned: slh-dsa 0.1.0 breaks against signature >=2.3.0-pre.5 (that release
+# bumped its rand_core requirement to 0.9, which removed CryptoRngCore that
+# slh-dsa's code still calls). Keep this pin until slh-dsa publishes a fix.
 serde_json.workspace = true
+signature = "=2.3.0-pre.4"
 slh-dsa = "0.1.0"
 thiserror.workspace = true
 x25519-dalek = { version = "3.0.0", features = ["getrandom", "static_secrets"] }

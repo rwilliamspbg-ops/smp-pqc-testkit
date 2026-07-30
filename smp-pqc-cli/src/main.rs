@@ -145,6 +145,12 @@ fn run_test(kind: TestKind) -> Result<()> {
             report,
         } => {
             if hybrid {
+                if !matches!(algo.parse(), Ok(kem::KemAlgorithm::MlKem768)) {
+                    bail!(
+                        "--hybrid only supports ml-kem-768 today (X25519 + ML-KEM-768); \
+                         got algo '{algo}'. Pass 'ml-kem-768' explicitly, or drop --hybrid."
+                    );
+                }
                 let r = kem::run_hybrid(iterations);
                 print_report(&r, r.failures == 0, report)?;
                 if r.failures != 0 {
