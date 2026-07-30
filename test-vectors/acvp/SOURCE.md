@@ -7,6 +7,7 @@ own reference validator uses. Fetched 2026-07-30 from `master`:
 | File | Source |
 |---|---|
 | `ml_kem_keygen.json` | `gen-val/json-files/ML-KEM-keyGen-FIPS203/internalProjection.json` |
+| `ml_kem_encap.json` | `gen-val/json-files/ML-KEM-encapDecap-FIPS203/internalProjection.json` (AFT/encapsulation groups only) |
 | `ml_kem_decap.json` | `gen-val/json-files/ML-KEM-encapDecap-FIPS203/internalProjection.json` (VAL/decapsulation groups only) |
 | `ml_dsa_keygen.json` | `gen-val/json-files/ML-DSA-keyGen-FIPS204/internalProjection.json` |
 | `ml_dsa_sigver.json` | `gen-val/json-files/ML-DSA-sigVer-FIPS204/internalProjection.json` (`preHash=='pure'` groups only) |
@@ -33,10 +34,16 @@ check.
   parameter yet — the KAT tests call the underlying RustCrypto crates
   directly for the precision this needs (specific parameter sets, raw
   pk/sig bytes, context strings), the same way `smp-pqc-bench` does.
-- `ml_kem_decap.json` only covers the VAL/decapsulation direction (an
-  expanded decapsulation key + a ciphertext, some deliberately corrupted,
-  checked against NIST's own expected output — including their own
-  "modified ciphertext" implicit-rejection cases). The AFT/encapsulation
-  direction isn't included: encapsulation KAT requires deterministically
-  injecting the internal randomness `m`, which needs the `ml-kem` crate's
-  `hazmat` feature and isn't wired up yet.
+- `ml_kem_decap.json` covers the VAL/decapsulation direction (an expanded
+  decapsulation key + a ciphertext, some deliberately corrupted, checked
+  against NIST's own expected output — including their own "modified
+  ciphertext" implicit-rejection cases). `ml_kem_encap.json` covers the
+  AFT/encapsulation direction, using `ml_kem::EncapsulationKey::encapsulate_deterministic`
+  to inject NIST's randomness `m` instead of drawing fresh OS randomness —
+  note that despite the name, this method is unconditionally public in the
+  `ml-kem` crate; the `hazmat` Cargo feature only affects whether it's shown
+  in rustdoc, not whether it compiles or requires enabling anything. Real
+  callers must never call it with non-fresh or reused randomness (the crate's
+  own doc comment calls this out as a catastrophic security failure) — it
+  exists specifically to let test suites like this one reproduce NIST's
+  known-answer ciphertexts.

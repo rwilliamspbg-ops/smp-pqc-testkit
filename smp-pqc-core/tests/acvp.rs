@@ -2,7 +2,7 @@
 //! ACVP-Server `internalProjection.json` reference vectors -- see
 //! `test-vectors/acvp/SOURCE.md` for exactly where each file came from,
 //! how it was sampled, and this test suite's scope limitations (pure mode
-//! only, no prehash, ML-KEM encapsulation direction not covered).
+//! only, no prehash mode).
 //!
 //! These call the underlying RustCrypto crates directly rather than going
 //! through smp-pqc-core's `kem`/`sig` wrappers: ACVP vectors need precise
@@ -146,6 +146,78 @@ fn ml_kem_decapsulation_acvp_kat() {
             "ML-KEM-512" => check_ml_kem_decap!(MlKem512, case),
             "ML-KEM-768" => check_ml_kem_decap!(MlKem768, case),
             "ML-KEM-1024" => check_ml_kem_decap!(MlKem1024, case),
+            other => panic!("unexpected ML-KEM parameter set in test vectors: {other}"),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct MlKemEncapFile {
+    tests: Vec<MlKemEncapCase>,
+}
+
+#[derive(Deserialize)]
+struct MlKemEncapCase {
+    #[serde(rename = "parameterSet")]
+    parameter_set: String,
+    #[serde(rename = "tcId")]
+    tc_id: u32,
+    ek: String,
+    m: String,
+    c: String,
+    k: String,
+}
+
+macro_rules! check_ml_kem_encap {
+    ($ty:ty, $case:expr) => {{
+        let case = $case;
+        let ek_bytes = hex_decode(&case.ek);
+        let mut ek_enc = ml_kem::kem::Key::<ml_kem::EncapsulationKey<$ty>>::default();
+        ek_enc.copy_from_slice(&ek_bytes);
+        let ek = ml_kem::EncapsulationKey::<$ty>::new(&ek_enc)
+            .unwrap_or_else(|e| panic!("tcId {}: invalid encapsulation key: {e:?}", case.tc_id));
+
+        let m_bytes = hex_decode(&case.m);
+        let mut m = ml_kem::B32::default();
+        m.copy_from_slice(&m_bytes);
+
+        // Injects NIST's own randomness `m` instead of drawing fresh OS
+        // randomness, so the ciphertext is reproducible and comparable
+        // against NIST's expected `c`. `encapsulate_deterministic` is a
+        // fully public method regardless of the `hazmat` Cargo feature --
+        // that feature only controls whether it's *shown* in rustdoc, not
+        // whether it compiles. Real callers must never do this: injecting
+        // non-fresh or reused randomness here is a catastrophic security
+        // failure, per the crate's own doc comment on this method.
+        let (c, k) = ek.encapsulate_deterministic(&m);
+
+        assert_eq!(
+            c.as_slice(),
+            hex_decode(&case.c).as_slice(),
+            "tcId {} ({}): ciphertext mismatch",
+            case.tc_id,
+            case.parameter_set
+        );
+        assert_eq!(
+            k.as_slice(),
+            hex_decode(&case.k).as_slice(),
+            "tcId {} ({}): shared key mismatch",
+            case.tc_id,
+            case.parameter_set
+        );
+    }};
+}
+
+#[test]
+fn ml_kem_encapsulation_acvp_kat() {
+    let file: MlKemEncapFile =
+        serde_json::from_str(include_str!("../../test-vectors/acvp/ml_kem_encap.json")).unwrap();
+    assert!(!file.tests.is_empty());
+    for case in &file.tests {
+        match case.parameter_set.as_str() {
+            "ML-KEM-512" => check_ml_kem_encap!(MlKem512, case),
+            "ML-KEM-768" => check_ml_kem_encap!(MlKem768, case),
+            "ML-KEM-1024" => check_ml_kem_encap!(MlKem1024, case),
             other => panic!("unexpected ML-KEM parameter set in test vectors: {other}"),
         }
     }

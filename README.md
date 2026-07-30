@@ -42,14 +42,13 @@ Early scaffold. What actually works today:
   [docs/threat-model.md](docs/threat-model.md)) and Linux-only in practice;
   runs in CI, not on this project's Windows dev machine.
 - `test-vectors/acvp` + `smp-pqc-core/tests/acvp.rs`: KAT smoke tests against
-  NIST's own ACVP-Server reference vectors (ML-KEM keygen + decapsulation
-  including NIST's own implicit-rejection cases; ML-DSA/SLH-DSA keygen; ML-DSA/
-  SLH-DSA signature verification including deliberately-corrupted negative
-  cases, with context strings). This validates the underlying RustCrypto
-  crates against NIST's ground truth, not just internal self-consistency —
-  see [test-vectors/acvp/SOURCE.md](test-vectors/acvp/SOURCE.md) for exactly
-  what's covered and what isn't (no prehash mode, no ML-KEM encapsulation
-  direction yet).
+  NIST's own ACVP-Server reference vectors (ML-KEM keygen + encapsulation +
+  decapsulation, including NIST's own implicit-rejection cases; ML-DSA/SLH-DSA
+  keygen; ML-DSA/SLH-DSA signature verification including deliberately-
+  corrupted negative cases, with context strings). This validates the
+  underlying RustCrypto crates against NIST's ground truth, not just internal
+  self-consistency — see [test-vectors/acvp/SOURCE.md](test-vectors/acvp/SOURCE.md)
+  for exactly what's covered and what isn't (no prehash mode).
 
 Everything else named in the roadmap below — TLS/SSH scanning, CBOM
 inventory, formal verification, TEE attestation, AF_XDP benchmarking,
