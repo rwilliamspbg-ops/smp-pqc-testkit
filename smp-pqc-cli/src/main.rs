@@ -31,11 +31,15 @@ enum Command {
         #[command(subcommand)]
         kind: ScanKind,
     },
-    /// Scan a codebase and produce a cryptography inventory / CBOM.
+    /// Scan a Cargo.lock (or a directory containing one) and produce a
+    /// cryptography inventory / CBOM.
     Inventory {
+        /// Path to a Cargo.lock file, or a directory containing one.
         path: String,
+        /// Emit a CycloneDX-shaped CBOM (JSON) instead of a human-readable summary.
         #[arg(long)]
         cbom: bool,
+        /// Write output to this file instead of stdout.
         #[arg(long)]
         output: Option<String>,
     },
@@ -151,15 +155,15 @@ fn main() -> Result<()> {
                 Ok(())
             }
         },
-        Command::Inventory { .. } => {
-            bail!("CBOM/inventory generation is not implemented yet (planned for Phase 4).");
-        }
+        Command::Inventory { path, cbom, output } => run_inventory(&path, cbom, output.as_deref()),
         Command::Verify { .. } => {
             bail!(
-                "Formal verification hooks (Lean4/TLA+) are not implemented yet (planned for \
-                 Phase 4). Scope: TLA+ specs for protocol state machines (e.g. the hybrid \
-                 handshake), plus citing libcrux's existing HACL*-derived proofs for primitives \
-                 -- not re-proving primitives from scratch."
+                "This CLI does not invoke formal verification directly (a Lean 4 toolchain \
+                 isn't assumed to be present at runtime). Real, machine-checked Lean 4 proofs \
+                 do exist, though -- see smp-pqc-verify/ (run `lake build` there, or read \
+                 smp-pqc-verify/README.md for what's actually proved: control-flow safety \
+                 properties of the hybrid KEM combiner and signature-report aggregation logic, \
+                 not proofs about the cryptographic primitives themselves)."
             );
         }
         Command::TeeRun { .. } => {
@@ -209,6 +213,48 @@ fn run_test(kind: TestKind) -> Result<()> {
             Ok(())
         }
     }
+}
+
+fn run_inventory(path: &str, cbom: bool, output: Option<&str>) -> Result<()> {
+    let lockfile_path =
+        smp_pqc_inventory::lockfile::resolve_lockfile_path(std::path::Path::new(path))?;
+    let packages = smp_pqc_inventory::lockfile::parse_lockfile(&lockfile_path)?;
+
+    let text = if cbom {
+        let document = smp_pqc_inventory::cbom::build_cbom(&packages);
+        serde_json::to_string_pretty(&document)?
+    } else {
+        let mut classified: Vec<_> = packages
+            .iter()
+            .filter_map(|p| smp_pqc_inventory::classify::classify(&p.name).map(|c| (p, c)))
+            .collect();
+        classified.sort_by(|(a, _), (b, _)| a.name.cmp(&b.name));
+
+        let mut out = format!(
+            "{} total dependencies, {} recognized as cryptographic\n\n",
+            packages.len(),
+            classified.len()
+        );
+        for (pkg, classification) in &classified {
+            let category = if classification.is_post_quantum_capable {
+                format!("{:?} [PQC]", classification.category)
+            } else {
+                format!("{:?}", classification.category)
+            };
+            out.push_str(&format!(
+                "{:<24} {:<12} {:<28} {}\n",
+                pkg.name, pkg.version, category, classification.note,
+            ));
+        }
+        out
+    };
+
+    match output {
+        Some(path) => std::fs::write(path, &text)
+            .map_err(|e| anyhow::anyhow!("failed to write {path}: {e}"))?,
+        None => println!("{text}"),
+    }
+    Ok(())
 }
 
 /// Turns a failed [`kem::KemReport`] into an error with a human-readable

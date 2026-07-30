@@ -18,7 +18,7 @@ Sovereign-Mohawk-Proto stack.
 
 ## Status
 
-Early scaffold. What actually works today:
+Pre-1.0, actively developed. What actually works today:
 
 - `smp-pqc-core`: safe wrappers over [`ml-kem`](https://crates.io/crates/ml-kem),
   [`ml-dsa`](https://crates.io/crates/ml-dsa), and [`slh-dsa`](https://crates.io/crates/slh-dsa)
@@ -59,16 +59,28 @@ Early scaffold. What actually works today:
   rustls server (no external network dependency in CI) and manually verified
   against real production infrastructure. **Only scan hosts you own or are
   explicitly authorized to test.**
+- `smp-pqc-inventory` (`inventory` / `inventory --cbom`): scans a
+  `Cargo.lock` and classifies known crypto crates (PQC vs. classical, and by
+  primitive — KEM, signature, cipher, hash, MAC, protocol, RNG, or
+  supporting utility), emitting either a human-readable summary or a
+  CycloneDX-shaped cryptography bill of materials (CBOM). Name-based
+  classification against a curated table, not static analysis of actual
+  code usage — see the honesty note in `smp-pqc-inventory/src/classify.rs`
+  for exactly what that does and doesn't mean.
+- `smp-pqc-verify`: a Lean 4 project with real, machine-checked, `sorry`-free
+  proofs about `smp-pqc-core`'s control-flow logic (the hybrid KEM combiner,
+  and the signature-report aggregation accounting) — not proofs about the
+  cryptographic primitives themselves. Runs in CI (`lean-verify` job). See
+  `smp-pqc-verify/README.md` for exactly what's proved and what isn't.
 
-Everything else named in the roadmap below — SSH scanning, CBOM inventory,
-formal verification, TEE attestation, AF_XDP benchmarking, side-channel/
-constant-time analysis — is **not implemented yet**. The relevant CLI
-subcommands exist but exit with an explicit "not implemented, planned for
-Phase N" error rather than faking output; see
-[docs/threat-model.md](docs/threat-model.md) for why each of these is
-harder than it looks (AF_XDP and TEE, in particular, are blocked by hardware
-limitations even under WSL2 — see the threat model doc) and what real scope
-looks like.
+Still not implemented: SSH/QUIC scanning (blocked on integration work, not
+algorithm support — `russh` already supports the right hybrid KEX, see
+[docs/threat-model.md](docs/threat-model.md)), TEE attestation and AF_XDP
+zero-copy benchmarking (blocked on hardware — even WSL2 doesn't unblock
+these, see the threat model doc), and side-channel/constant-time analysis
+(needs real timing-analysis tooling, not a unit test). The relevant CLI
+subcommands exist but exit with an explicit, specific error rather than
+faking output.
 
 ## Usage
 
@@ -94,11 +106,19 @@ cargo bench -p smp-pqc-bench --bench sig
 # to test)
 cargo run -p smp-pqc-cli -- scan tls example.com --pqc-only --report json
 
+# Cryptography inventory / CBOM for this workspace's own dependencies
+cargo run -p smp-pqc-cli -- inventory .
+cargo run -p smp-pqc-cli -- inventory . --cbom --output report.cdx.json
+
 # Run the test suite, including NIST ACVP KAT checks (takes ~100-110s:
 # SLH-DSA-256s alone is ~1-2 min/sign in an unoptimized build without the
 # workspace's dependency opt-level override -- see Cargo.toml and
 # smp-pqc-core/src/sig.rs for why)
 cargo test --workspace
+
+# Lean 4 formal verification proofs (requires a Lean toolchain via elan;
+# see smp-pqc-verify/README.md)
+(cd smp-pqc-verify && lake build)
 ```
 
 Supported `test kem` algorithms: `ml-kem-512`, `ml-kem-768`, `ml-kem-1024`.
@@ -110,27 +130,32 @@ Supported `test sig` algorithms: `ml-dsa-44`, `ml-dsa-65`, `ml-dsa-87`, and all
 
 ```
 smp-pqc-testkit/
-├── smp-pqc-core/     # Safe abstractions over ML-KEM/ML-DSA/SLH-DSA + hybrids
-│   └── fuzz/           # cargo-fuzz target for the algorithm-name parsers (Linux-only)
-├── smp-pqc-cli/      # smp-pqc binary
-├── smp-pqc-bench/    # Criterion benchmarks (keygen/encap/decap, keygen/sign/verify)
-├── smp-pqc-network/  # TLS PQC/hybrid handshake scanning (rustls + aws-lc-rs)
-├── test-vectors/acvp/ # Sampled NIST ACVP-Server reference vectors + provenance (SOURCE.md)
-├── docs/               # Threat model, architecture notes
-└── examples/           # (planned) Mohawk-Nexus / SMIP-MWP-Rust integration demos
+├── smp-pqc-core/       # Safe abstractions over ML-KEM/ML-DSA/SLH-DSA + hybrids
+│   ├── examples/         # basic_usage.rs: using smp-pqc-core as a plain library
+│   ├── fuzz/             # cargo-fuzz target for the algorithm-name parsers (Linux-only)
+│   └── tests/acvp.rs     # NIST ACVP known-answer tests
+├── smp-pqc-cli/        # smp-pqc binary
+├── smp-pqc-bench/      # Criterion benchmarks (keygen/encap/decap, keygen/sign/verify)
+├── smp-pqc-network/    # TLS PQC/hybrid handshake scanning (rustls + aws-lc-rs)
+├── smp-pqc-inventory/  # Cryptography inventory / CycloneDX CBOM generation
+├── smp-pqc-verify/     # Lean 4 project: machine-checked control-flow proofs
+├── test-vectors/acvp/  # Sampled NIST ACVP-Server reference vectors + provenance (SOURCE.md)
+├── docs/                 # Threat model, architecture notes
+└── examples/             # Mohawk-Nexus / SMIP-MWP-Rust integration demos (still empty -- see examples/README.md)
 ```
 
-Crates not yet created (`smp-pqc-tee`, `smp-pqc-inventory`, `smp-pqc-verify`)
-will be split out of the workspace when their phase of work actually starts,
-rather than scaffolded empty up front.
+`smp-pqc-tee` (Cargo) doesn't exist yet — TEE attestation is blocked on
+hardware (see the threat model doc), so there's nothing to scaffold until
+that's actually reachable.
 
 ## Roadmap
 
 See [docs/threat-model.md](docs/threat-model.md) for the threat model this
-kit is designed against, and the phase breakdown for what's planned next.
-Network scanning, AF_XDP benchmarking, TEE attestation, and formal
-verification are all Linux/hardware-dependent or research-scope efforts — see
-the threat model doc for realistic sequencing and platform requirements.
+kit is designed against, and exactly what's blocking each remaining item:
+SSH/QUIC scanning (integration work, not algorithm support), AF_XDP
+benchmarking and TEE attestation (hardware, not just an OS/kernel — WSL2
+doesn't unblock either), and side-channel/constant-time analysis (needs
+dedicated timing-analysis tooling, not a unit test).
 
 ## License
 

@@ -5,6 +5,7 @@ members = [
     "smp-pqc-cli",
     "smp-pqc-bench",
     "smp-pqc-network",
+    "smp-pqc-inventory",
 ]
 
 [workspace.package]

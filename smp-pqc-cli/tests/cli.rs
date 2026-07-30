@@ -229,21 +229,72 @@ fn scan_tls_unreachable_host_fails_clearly() {
 }
 
 #[test]
-fn inventory_fails_with_planned_phase_message() {
-    cmd()
-        .args(["inventory", ".", "--cbom"])
-        .assert()
-        .failure()
-        .stderr(predicate::str::contains("not implemented yet"));
+fn inventory_cbom_detects_our_own_pqc_crates() {
+    // "cargo test" runs with CWD set to this crate's own directory, which
+    // has no Cargo.lock of its own (it's a workspace member) -- the
+    // workspace root, one level up, is where the real lockfile lives.
+    let assert = cmd().args(["inventory", "..", "--cbom"]).assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(parsed["bomFormat"], "CycloneDX");
+    let names: Vec<&str> = parsed["components"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["name"].as_str().unwrap())
+        .collect();
+    assert!(names.contains(&"ml-kem"));
+    assert!(names.contains(&"ml-dsa"));
+    assert!(names.contains(&"slh-dsa"));
 }
 
 #[test]
-fn verify_formal_fails_with_planned_phase_message() {
+fn inventory_text_summary_reports_counts() {
+    let assert = cmd().args(["inventory", ".."]).assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(stdout.contains("total dependencies"));
+    assert!(stdout.contains("ml-kem"));
+}
+
+#[test]
+fn inventory_missing_lockfile_fails_clearly() {
+    let dir = std::env::temp_dir().join("smp-pqc-cli-inventory-test-empty-dir");
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    cmd()
+        .args(["inventory", dir.to_str().unwrap()])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("no Cargo.lock found"));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn inventory_output_flag_writes_to_file() {
+    let out_path = std::env::temp_dir().join("smp-pqc-cli-inventory-test-output.cdx.json");
+    let _ = std::fs::remove_file(&out_path);
+    cmd()
+        .args([
+            "inventory",
+            "..",
+            "--cbom",
+            "--output",
+            out_path.to_str().unwrap(),
+        ])
+        .assert()
+        .success();
+    let contents = std::fs::read_to_string(&out_path).expect("output file should exist");
+    assert!(contents.contains("CycloneDX"));
+    std::fs::remove_file(&out_path).ok();
+}
+
+#[test]
+fn verify_formal_points_to_the_real_lean_proofs() {
     cmd()
         .args(["verify", "--formal"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("not implemented yet"));
+        .stderr(predicate::str::contains("smp-pqc-verify/"));
 }
 
 #[test]

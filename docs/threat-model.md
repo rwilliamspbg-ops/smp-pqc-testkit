@@ -15,11 +15,14 @@
 - **Downgrade attacks**: a hybrid handshake that silently falls back to the
   classical leg alone. Mitigation: `smp-pqc-network`'s TLS scanner
   (`scan tls`) reports the actual negotiated key-exchange group, not just
-  what was offered. SSH/QUIC scanning is still planned, not implemented.
+  what was offered. SSH/QUIC scanning is still planned, not implemented (see
+  the SSH note under Platform constraints below for what's actually blocking
+  it — it isn't a missing algorithm).
 - **Supply-chain drift**: unaudited or unmaintained crypto dependencies pulled
-  into a downstream project. Mitigation: (planned, Phase 4) CBOM generation so
-  downstream consumers know exactly which crypto primitives and versions are
-  in use.
+  into a downstream project. Mitigation: `smp-pqc-inventory` generates a
+  CycloneDX-style cryptography bill of materials (CBOM) so downstream
+  consumers know exactly which crypto crates, versions, and PQC/classical
+  classifications are in use.
 
 ## What this kit does not defend against (out of scope)
 
@@ -51,13 +54,28 @@
   crate (not `tpm2-rs`, which does not appear to exist under that name — this
   was corrected from an earlier draft of the plan) is the maintained Rust TSS
   binding to evaluate here.
-- **Formal verification** (planned `smp-pqc-verify`): proving PQC primitives
-  from scratch in Lean4/TLA+ is a research-scale effort, not achievable in the
-  timeframe of this roadmap. Realistic scope is (a) citing/consuming
+- **SSH PQC scanning** is not blocked by algorithm support: `russh` 0.62.4
+  already implements `mlkem768x25519-sha256` hybrid KEX
+  (`russh::kex::MLKEM768X25519_SHA256`), matching what OpenSSH 9.x+ offers.
+  What's actually missing is the integration work: `russh`'s client API is
+  async (tokio) where the rest of this CLI is synchronous, and the
+  negotiated-algorithm value (`negotiation::Names.kex`) wasn't confirmed to
+  be exposed on the public `Handle`/`Session` type during a first pass —
+  it may require a custom `Handler` callback or additional API spelunking.
+  Deferred rather than rushed; this is genuinely tractable, just not a
+  quick addition alongside everything else in this pass.
+- **Formal verification** (`smp-pqc-verify`): proving PQC primitives from
+  scratch is a research-scale effort, out of scope here — this project cites
   [libcrux](https://github.com/cryspen/libcrux)'s existing HACL*-derived
-  formal proofs for primitives, and (b) writing TLA+ specs for
-  protocol-level state machines this project actually controls (e.g. the
-  hybrid handshake sequencing), not the underlying lattice/hash math.
+  proofs for that instead. What's actually implemented: `smp-pqc-verify` is
+  a Lean 4 project (not TLA+ — no Java/TLC toolchain was available in this
+  environment, and building an "unverified TLA+ spec" would be the same
+  category of problem as faking AF_XDP zero-copy on WSL2's `hv_netvsc`
+  driver: claiming a check that never actually ran) with real,
+  machine-checked, `sorry`-free proofs about `smp-pqc-core`'s control-flow
+  logic — the hybrid KEM combiner and the signature-report aggregation
+  accounting — not about the underlying lattice/hash math. See
+  `smp-pqc-verify/README.md` for exactly what's proved and what isn't.
 - **Fuzzing** (`smp-pqc-core/fuzz`): `cargo-fuzz` requires a nightly toolchain
   and libFuzzer/AddressSanitizer, neither of which is usable on
   `x86_64-pc-windows-msvc`. The `parse_algorithm_names` fuzz target cannot be

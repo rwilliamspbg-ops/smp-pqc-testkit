@@ -1,0 +1,6 @@
+name = "smp_pqc_verify"
+version = "0.1.0"
+defaultTargets = ["SmpPqcVerify"]
+
+[[lean_lib]]
+name = "SmpPqcVerify"

@@ -13,6 +13,7 @@ path = "src/main.rs"
 [dependencies]
 smp-pqc-core = { path = "../smp-pqc-core" }
 smp-pqc-network = { path = "../smp-pqc-network" }
+smp-pqc-inventory = { path = "../smp-pqc-inventory" }
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

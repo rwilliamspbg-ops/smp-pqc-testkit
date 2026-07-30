@@ -13,7 +13,9 @@
 //! must never treat "decapsulate returned Ok" as "the ciphertext was
 //! genuine" — the only valid check is comparing against the expected key
 //! (e.g. via a subsequent authenticated message), which is exactly what
-//! [`tests::ml_kem_768_tampered_ciphertext_is_implicitly_rejected`] asserts.
+//! this module's `ml_kem_768_tampered_ciphertext_is_implicitly_rejected`
+//! test (and the ACVP KAT's "modified ciphertext" cases in
+//! `smp-pqc-core/tests/acvp.rs`) assert.
 
 use ml_kem::kem::{Decapsulate, Encapsulate, Kem};
 use ml_kem::{MlKem1024, MlKem512, MlKem768};
