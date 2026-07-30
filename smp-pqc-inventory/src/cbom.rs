@@ -157,11 +157,17 @@ pub fn build_cbom(packages: &[LockedPackage]) -> CbomDocument {
 mod tests {
     use super::*;
     use crate::lockfile::parse_lockfile;
-    use std::path::Path;
+
+    // Same bundled real-world lockfile snapshot as lockfile.rs's tests --
+    // see that module's `SAMPLE_LOCKFILE` doc comment for why this isn't
+    // reached via a `../` path into the parent workspace.
+    const SAMPLE_LOCKFILE: &str = include_str!("../tests/fixtures/sample-workspace-cargo-lock.txt");
 
     fn workspace_packages() -> Vec<LockedPackage> {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../Cargo.lock");
-        parse_lockfile(&path).expect("parse workspace Cargo.lock")
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("Cargo.lock");
+        std::fs::write(&path, SAMPLE_LOCKFILE).expect("write fixture");
+        parse_lockfile(&path).expect("parse sample Cargo.lock")
     }
 
     #[test]

@@ -2,7 +2,14 @@
 
 These files are sampled subsets of NIST's own [ACVP-Server](https://github.com/usnistgov/ACVP-Server)
 `internalProjection.json` test vectors — the same ground-truth files NIST's
-own reference validator uses. Fetched 2026-07-30 from `master`:
+own reference validator uses. Fetched 2026-07-30 from `master`.
+
+They live inside `smp-pqc-core/` (rather than the workspace root) so that
+`cargo package`/`cargo publish` includes them in the published crate —
+`smp-pqc-core/tests/acvp.rs`'s `include_str!` calls can only reach files
+within this crate's own directory tree; a path escaping it via `../../`
+would compile fine in this workspace but fail to find the file when
+built from the crates.io tarball.
 
 | File | Source |
 |---|---|

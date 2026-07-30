@@ -1,8 +1,12 @@
 //! NIST ACVP known-answer tests (KATs), sampled from NIST's own
 //! ACVP-Server `internalProjection.json` reference vectors -- see
-//! `test-vectors/acvp/SOURCE.md` for exactly where each file came from,
-//! how it was sampled, and this test suite's scope limitations (pure mode
-//! only, no prehash mode).
+//! `smp-pqc-core/test-vectors/SOURCE.md` for exactly where each file came
+//! from, how it was sampled, and this test suite's scope limitations (pure
+//! mode only, no prehash mode). Vectors live inside this crate's own
+//! directory tree (not the workspace root) specifically so `cargo package`
+//! includes them -- an `include_str!` pointing outside the crate directory
+//! would compile in this workspace but fail for anyone building from the
+//! published crates.io tarball.
 //!
 //! These call the underlying RustCrypto crates directly rather than going
 //! through smp-pqc-core's `kem`/`sig` wrappers: ACVP vectors need precise
@@ -71,7 +75,7 @@ macro_rules! check_ml_kem_keygen {
 #[test]
 fn ml_kem_keygen_acvp_kat() {
     let file: MlKemKeygenFile =
-        serde_json::from_str(include_str!("../../test-vectors/acvp/ml_kem_keygen.json")).unwrap();
+        serde_json::from_str(include_str!("../test-vectors/ml_kem_keygen.json")).unwrap();
     assert!(!file.tests.is_empty());
     for case in &file.tests {
         match case.parameter_set.as_str() {
@@ -139,7 +143,7 @@ macro_rules! check_ml_kem_decap {
 #[test]
 fn ml_kem_decapsulation_acvp_kat() {
     let file: MlKemDecapFile =
-        serde_json::from_str(include_str!("../../test-vectors/acvp/ml_kem_decap.json")).unwrap();
+        serde_json::from_str(include_str!("../test-vectors/ml_kem_decap.json")).unwrap();
     assert!(!file.tests.is_empty());
     for case in &file.tests {
         match case.parameter_set.as_str() {
@@ -211,7 +215,7 @@ macro_rules! check_ml_kem_encap {
 #[test]
 fn ml_kem_encapsulation_acvp_kat() {
     let file: MlKemEncapFile =
-        serde_json::from_str(include_str!("../../test-vectors/acvp/ml_kem_encap.json")).unwrap();
+        serde_json::from_str(include_str!("../test-vectors/ml_kem_encap.json")).unwrap();
     assert!(!file.tests.is_empty());
     for case in &file.tests {
         match case.parameter_set.as_str() {
@@ -270,7 +274,7 @@ macro_rules! check_ml_dsa_keygen {
 #[test]
 fn ml_dsa_keygen_acvp_kat() {
     let file: MlDsaKeygenFile =
-        serde_json::from_str(include_str!("../../test-vectors/acvp/ml_dsa_keygen.json")).unwrap();
+        serde_json::from_str(include_str!("../test-vectors/ml_dsa_keygen.json")).unwrap();
     assert!(!file.tests.is_empty());
     for case in &file.tests {
         match case.parameter_set.as_str() {
@@ -341,7 +345,7 @@ macro_rules! check_ml_dsa_sigver {
 #[test]
 fn ml_dsa_sigver_acvp_kat() {
     let file: MlDsaSigVerFile =
-        serde_json::from_str(include_str!("../../test-vectors/acvp/ml_dsa_sigver.json")).unwrap();
+        serde_json::from_str(include_str!("../test-vectors/ml_dsa_sigver.json")).unwrap();
     assert!(!file.tests.is_empty());
     let mut saw_pass = false;
     let mut saw_fail = false;
@@ -421,7 +425,7 @@ macro_rules! check_slh_dsa_keygen {
 fn slh_dsa_keygen_acvp_kat() {
     use slh_dsa::signature::Keypair;
     let file: SlhDsaKeygenFile =
-        serde_json::from_str(include_str!("../../test-vectors/acvp/slh_dsa_keygen.json")).unwrap();
+        serde_json::from_str(include_str!("../test-vectors/slh_dsa_keygen.json")).unwrap();
     assert!(!file.tests.is_empty());
     for case in &file.tests {
         match case.parameter_set.as_str() {
@@ -490,7 +494,7 @@ macro_rules! check_slh_dsa_sigver {
 #[test]
 fn slh_dsa_sigver_acvp_kat() {
     let file: SlhDsaSigVerFile =
-        serde_json::from_str(include_str!("../../test-vectors/acvp/slh_dsa_sigver.json")).unwrap();
+        serde_json::from_str(include_str!("../test-vectors/slh_dsa_sigver.json")).unwrap();
     assert!(!file.tests.is_empty());
     let mut saw_pass = false;
     let mut saw_fail = false;

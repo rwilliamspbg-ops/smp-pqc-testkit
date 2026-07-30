@@ -1,0 +1,79 @@
+name: Publish to crates.io
+
+# Triggered by pushing a `vX.Y.Z` tag (matching this project's existing
+# release process -- see RELEASING.md), or manually via workflow_dispatch
+# for a re-run. Requires a `CARGO_REGISTRY_TOKEN` repository secret (a
+# crates.io API token with publish rights) -- until that secret is added,
+# the `cargo publish` steps below will fail authentication, which is the
+# only thing standing between this workflow and actually publishing.
+#
+# Publishes in dependency order: smp-pqc-core, smp-pqc-network, and
+# smp-pqc-inventory have no path dependencies on each other and can publish
+# in any order relative to one another, but smp-pqc-cli depends on all
+# three (via path+version) and must publish last, after they're indexed.
+# smp-pqc-bench is `publish = false` (bench-only, no library, nothing for
+# a consumer to depend on) and is deliberately not published.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+jobs:
+  publish:
+    name: Publish crates (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Verify the pushed tag matches the workspace version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          cargo_version="$(cargo metadata --no-deps --format-version=1 | \
+            jq -r '.packages[] | select(.name == "smp-pqc-core") | .version')"
+          if [ "$tag_version" != "$cargo_version" ]; then
+            echo "::error::Tag v$tag_version does not match the workspace version ($cargo_version in Cargo.toml). Fix [workspace.package].version (and the path-dependency version pins in smp-pqc-cli/Cargo.toml) and re-tag before publishing."
+            exit 1
+          fi
+
+      - name: Verify smp-pqc-cli's path-dependency versions are in sync
+        run: |
+          cargo_version="$(cargo metadata --no-deps --format-version=1 | \
+            jq -r '.packages[] | select(.name == "smp-pqc-core") | .version')"
+          for dep in smp-pqc-core smp-pqc-network smp-pqc-inventory; do
+            if ! grep -qF "$dep = { path = \"../$dep\", version = \"$cargo_version\" }" smp-pqc-cli/Cargo.toml; then
+              echo "::error::smp-pqc-cli's path dependency on $dep is not pinned to version \"$cargo_version\" in smp-pqc-cli/Cargo.toml. Update it to match [workspace.package].version before publishing, or this crate's published metadata will point at the wrong dependency version."
+              exit 1
+            fi
+          done
+
+      - name: Publish smp-pqc-core
+        run: cargo publish -p smp-pqc-core --locked
+
+      # crates.io's index needs a little time to make a freshly-published
+      # crate resolvable as a dependency for the next `cargo publish` --
+      # without this, publishing smp-pqc-cli immediately after its
+      # dependencies can fail to resolve them even though they just
+      # succeeded. A fixed sleep is crude but standard practice for small
+      # crate graphs like this one.
+      - name: Wait for smp-pqc-core to be indexed
+        run: sleep 30
+
+      - name: Publish smp-pqc-network
+        run: cargo publish -p smp-pqc-network --locked
+      - name: Publish smp-pqc-inventory
+        run: cargo publish -p smp-pqc-inventory --locked
+
+      - name: Wait for smp-pqc-network/smp-pqc-inventory to be indexed
+        run: sleep 30
+
+      - name: Publish smp-pqc-cli
+        run: cargo publish -p smp-pqc-cli --locked

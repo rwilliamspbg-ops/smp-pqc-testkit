@@ -52,13 +52,24 @@ pub fn resolve_lockfile_path(input: &Path) -> anyhow::Result<std::path::PathBuf>
 mod tests {
     use super::*;
 
+    // A real, complex Cargo.lock snapshot (not a synthetic fixture) bundled
+    // inside this crate's own directory tree, rather than reached via a
+    // `../` path into the parent workspace: this crate must remain
+    // self-contained to publish correctly (a path escaping the crate
+    // directory works fine in this workspace but breaks for anyone testing
+    // the crate from its published crates.io tarball, which only contains
+    // files under the crate root).
+    const SAMPLE_LOCKFILE: &str = include_str!("../tests/fixtures/sample-workspace-cargo-lock.txt");
+
     #[test]
-    fn parses_this_workspaces_own_lockfile() {
-        // Real data, not a fixture: exercises the parser against our own
-        // Cargo.lock, which is large and has the full variety of real-world
-        // shapes (path deps, registry deps, deps with/without `source`).
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../Cargo.lock");
-        let packages = parse_lockfile(&path).expect("parse workspace Cargo.lock");
+    fn parses_a_real_complex_lockfile() {
+        // Exercises the parser against real-world data (path deps, registry
+        // deps, deps with/without `source`), not just a minimal fixture.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("Cargo.lock");
+        std::fs::write(&path, SAMPLE_LOCKFILE).expect("write fixture");
+
+        let packages = parse_lockfile(&path).expect("parse sample Cargo.lock");
         assert!(packages.len() > 20, "expected a real, non-trivial lockfile");
         assert!(packages.iter().any(|p| p.name == "ml-kem"));
         assert!(packages.iter().any(|p| p.name == "rustls"));
@@ -66,19 +77,28 @@ mod tests {
 
     #[test]
     fn resolve_lockfile_path_finds_cargo_lock_in_a_directory() {
-        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-        let resolved = resolve_lockfile_path(&dir).expect("resolve");
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("Cargo.lock"), SAMPLE_LOCKFILE).expect("write fixture");
+
+        let resolved = resolve_lockfile_path(dir.path()).expect("resolve");
         assert!(resolved.ends_with("Cargo.lock"));
         assert!(resolved.exists());
     }
 
     #[test]
     fn resolve_lockfile_path_rejects_directory_without_lockfile() {
-        let dir = std::env::temp_dir().join("smp-pqc-inventory-test-empty-dir-xyz");
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        let result = resolve_lockfile_path(&dir);
-        std::fs::remove_dir_all(&dir).ok();
+        let dir = tempfile::tempdir().expect("tempdir");
+        let result = resolve_lockfile_path(dir.path());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn resolve_lockfile_path_passes_through_a_direct_file_path() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("some-other-name.lock");
+        std::fs::write(&path, SAMPLE_LOCKFILE).expect("write fixture");
+
+        let resolved = resolve_lockfile_path(&path).expect("resolve");
+        assert_eq!(resolved, path);
     }
 }

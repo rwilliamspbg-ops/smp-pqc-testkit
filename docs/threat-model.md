@@ -11,7 +11,7 @@
   fails on edge-case parameter sets. Mitigation: roundtrip + tamper-detection
   tests across all standardized parameter sets, and NIST ACVP known-answer
   tests against real reference vectors (`smp-pqc-core/tests/acvp.rs`) — see
-  `test-vectors/acvp/SOURCE.md` for exact scope.
+  `smp-pqc-core/test-vectors/SOURCE.md` for exact scope.
 - **Downgrade attacks**: a hybrid handshake that silently falls back to the
   classical leg alone. Mitigation: `smp-pqc-network`'s TLS scanner
   (`scan tls`) and SSH scanner (`scan ssh`) both report the actual

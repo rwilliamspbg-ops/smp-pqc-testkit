@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Safe Rust abstractions over NIST PQC algorithms (ML-KEM, ML-DSA, SLH-DSA) and classical/PQC hybrids"
+readme = "README.md"
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 anyhow.workspace = true

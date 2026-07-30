@@ -7,6 +7,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **crates.io publishing preparation**: `smp-pqc-core`, `smp-pqc-cli`,
+  `smp-pqc-network`, and `smp-pqc-inventory` now have full crates.io
+  metadata (`readme`, `keywords`, `categories`, a bundled `LICENSE` copy
+  each) and a per-crate `README.md`. `.github/workflows/publish.yml`
+  publishes all four automatically on a `vX.Y.Z` tag push, in dependency
+  order, once a `CARGO_REGISTRY_TOKEN` repository secret is added — see
+  `RELEASING.md`. A `package-check` CI job runs `cargo package` for the
+  three independent crates on every push to catch metadata/packaging
+  regressions before they'd ever reach an actual publish attempt.
 - **SSH PQC/hybrid KEX scanning** (`scan ssh`, `smp-pqc-network::ssh`): uses
   `russh` 0.62's native `mlkem768x25519-sha256` support and its
   `Handler::kex_done` callback to report the actually negotiated
@@ -33,6 +42,27 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   since ML-DSA's rejection-sampling retries cause expected variable-time
   behavior that isn't itself a vulnerability, and distinguishing that from
   a real secret-dependent leak needs more rigor than a first pass gives it.
+
+### Fixed
+
+- Moved `test-vectors/acvp/` (workspace root) to `smp-pqc-core/test-vectors/`
+  (inside the crate). `smp-pqc-core/tests/acvp.rs`'s `include_str!` calls
+  can only resolve files within the crate's own directory tree; the old
+  path worked fine in this workspace but would have failed to compile for
+  anyone building `smp-pqc-core` from its published crates.io tarball,
+  since `cargo package` doesn't include files from outside the crate
+  directory. Caught while preparing crates for publishing, before any
+  version was actually published with the bug.
+- `smp-pqc-inventory`'s tests read the workspace root's `Cargo.lock` via a
+  `../` path for realistic test data — same category of bug, same fix
+  category: bundled a real lockfile snapshot as
+  `smp-pqc-inventory/tests/fixtures/sample-workspace-cargo-lock.txt` inside
+  the crate instead. Verified by running `cargo test` against the actual
+  extracted `cargo package` output, not just re-reading the source.
+- Added `version` to `smp-pqc-cli`'s path dependencies on
+  `smp-pqc-core`/`smp-pqc-network`/`smp-pqc-inventory`: crates.io resolves
+  a published crate's dependencies from the registry, not local paths, and
+  refuses to publish path-only dependencies without one.
 
 ## [0.1.0] - 2026-07-30
 

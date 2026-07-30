@@ -13,6 +13,12 @@ version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/rwilliamspbg-ops/smp-pqc-testkit"
+# Shared crates.io metadata. Individual crates that warrant more specific
+# categories (e.g. smp-pqc-cli's "command-line-utilities") set their own
+# `categories` literal instead of inheriting this one -- workspace field
+# inheritance is all-or-nothing per field, not additive.
+keywords = ["post-quantum", "cryptography", "pqc", "kyber", "dilithium"]
+categories = ["cryptography"]
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

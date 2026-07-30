@@ -50,6 +50,26 @@ jobs:
       - run: lake build
         working-directory: smp-pqc-verify
 
+  # Catches crates.io metadata/packaging regressions (missing description,
+  # a file reference escaping the crate directory, etc.) on every push,
+  # separately from actually publishing anything. Only the three crates
+  # with no path dependencies on each other can be checked this way --
+  # smp-pqc-cli depends on them via path+version, and cargo's packaging
+  # verification build resolves that version from the *registry*, which
+  # doesn't have anything published yet on a fresh checkout. That's a
+  # real chicken-and-egg constraint of multi-crate workspace publishing,
+  # not a gap in this check; see .github/workflows/publish.yml.
+  package-check:
+    name: crates.io packaging check (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo package -p smp-pqc-core --locked
+      - run: cargo package -p smp-pqc-network --locked
+      - run: cargo package -p smp-pqc-inventory --locked
+
   # cargo-fuzz needs nightly + libFuzzer/ASan, which aren't usable on the
   # windows-msvc target -- Linux-only, and deliberately not part of the
   # build-test matrix above.

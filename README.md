@@ -41,13 +41,13 @@ Pre-1.0, actively developed. What actually works today:
   Narrow in scope (there's no byte-serialization API to fuzz yet — see
   [docs/threat-model.md](docs/threat-model.md)) and Linux-only in practice;
   runs in CI, not on this project's Windows dev machine.
-- `test-vectors/acvp` + `smp-pqc-core/tests/acvp.rs`: KAT smoke tests against
+- `smp-pqc-core/test-vectors` + `smp-pqc-core/tests/acvp.rs`: KAT smoke tests against
   NIST's own ACVP-Server reference vectors (ML-KEM keygen + encapsulation +
   decapsulation, including NIST's own implicit-rejection cases; ML-DSA/SLH-DSA
   keygen; ML-DSA/SLH-DSA signature verification including deliberately-
   corrupted negative cases, with context strings). This validates the
   underlying RustCrypto crates against NIST's ground truth, not just internal
-  self-consistency — see [test-vectors/acvp/SOURCE.md](test-vectors/acvp/SOURCE.md)
+  self-consistency — see [smp-pqc-core/test-vectors/SOURCE.md](smp-pqc-core/test-vectors/SOURCE.md)
   for exactly what's covered and what isn't (no prehash mode).
 - `smp-pqc-network` (`scan tls`, `scan ssh`): real handshake scanners
   reporting the actually negotiated key-exchange algorithm.
@@ -151,13 +151,13 @@ smp-pqc-testkit/
 ├── smp-pqc-core/       # Safe abstractions over ML-KEM/ML-DSA/SLH-DSA + hybrids
 │   ├── examples/         # basic_usage.rs (library usage), dudect_ml_kem_decap.rs (constant-time check)
 │   ├── fuzz/             # cargo-fuzz target for the algorithm-name parsers (Linux-only)
+│   ├── test-vectors/     # Sampled NIST ACVP-Server reference vectors + provenance (SOURCE.md)
 │   └── tests/acvp.rs     # NIST ACVP known-answer tests
 ├── smp-pqc-cli/        # smp-pqc binary
 ├── smp-pqc-bench/      # Criterion benchmarks (keygen/encap/decap, keygen/sign/verify)
 ├── smp-pqc-network/    # TLS PQC/hybrid handshake scanning (rustls + aws-lc-rs)
 ├── smp-pqc-inventory/  # Cryptography inventory / CycloneDX CBOM generation
 ├── smp-pqc-verify/     # Lean 4 project: machine-checked control-flow proofs
-├── test-vectors/acvp/  # Sampled NIST ACVP-Server reference vectors + provenance (SOURCE.md)
 ├── docs/                 # Threat model, architecture notes
 └── examples/             # Mohawk-Nexus / SMIP-MWP-Rust integration demos (still empty -- see examples/README.md)
 ```
@@ -170,10 +170,21 @@ that's actually reachable.
 
 See [docs/threat-model.md](docs/threat-model.md) for the threat model this
 kit is designed against, and exactly what's blocking each remaining item:
-SSH/QUIC scanning (integration work, not algorithm support), AF_XDP
-benchmarking and TEE attestation (hardware, not just an OS/kernel — WSL2
-doesn't unblock either), and side-channel/constant-time analysis (needs
-dedicated timing-analysis tooling, not a unit test).
+QUIC scanning (not started), AF_XDP benchmarking and TEE attestation
+(hardware, not just an OS/kernel — WSL2 doesn't unblock either), and
+broader constant-time coverage beyond the one existing ML-KEM-768 check.
+
+## Publishing
+
+`smp-pqc-core`, `smp-pqc-cli`, `smp-pqc-network`, and `smp-pqc-inventory`
+are prepared for crates.io: full metadata, self-contained packages (every
+`include_str!`/test fixture lives inside its own crate directory — verified
+with `cargo package`, not just asserted), and a `.github/workflows/publish.yml`
+that publishes automatically on a `vX.Y.Z` tag push once a
+`CARGO_REGISTRY_TOKEN` repository secret is added. See
+[RELEASING.md](RELEASING.md) for the full release process.
+`smp-pqc-bench` (bench-only, no library) and `smp-pqc-verify` (a Lean 4
+project, not a Cargo crate) are not published.
 
 ## License
 

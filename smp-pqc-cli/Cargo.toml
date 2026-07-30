@@ -5,15 +5,23 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "smp-pqc: Sovereign Mohawk PQC test kit CLI"
+readme = "README.md"
+keywords.workspace = true
+categories = ["cryptography", "command-line-utilities"]
 
 [[bin]]
 name = "smp-pqc"
 path = "src/main.rs"
 
 [dependencies]
-smp-pqc-core = { path = "../smp-pqc-core" }
-smp-pqc-network = { path = "../smp-pqc-network" }
-smp-pqc-inventory = { path = "../smp-pqc-inventory" }
+# Path deps need an explicit `version` to publish: crates.io resolves a
+# published crate's dependencies from the registry, not local paths, and
+# refuses to publish path-only deps without one. Keep this in sync with
+# [workspace.package].version when bumping -- .github/workflows/publish.yml
+# checks this before publishing and fails loudly if it drifts.
+smp-pqc-core = { path = "../smp-pqc-core", version = "0.1.0" }
+smp-pqc-network = { path = "../smp-pqc-network", version = "0.1.0" }
+smp-pqc-inventory = { path = "../smp-pqc-inventory", version = "0.1.0" }
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
