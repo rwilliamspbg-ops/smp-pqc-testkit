@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>smp-pqc-testkit</title>
+<style>
+  :root {
+    --ground: #0B0F17;
+    --ground-raised: #121927;
+    --ink: #E8EDF4;
+    --ink-muted: #8FA0B8;
+    --ink-faint: #4C5A70;
+    --accent: #4FD8E0;
+    --accent-warm: #E08A4F;
+    --mono: "Cascadia Code", "Cascadia Mono", Consolas, "SFMono-Regular", monospace;
+    --serif: Constantia, Cambria, Georgia, serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1280px;
+    height: 640px;
+    overflow: hidden;
+    background: var(--ground);
+    font-family: var(--serif);
+  }
+  body {
+    position: relative;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(143, 160, 184, 0.16) 1px, transparent 0);
+    background-size: 28px 28px;
+  }
+
+  /* faint vignette so the dot grid fades toward the edges instead of
+     reading as a uniform texture */
+  .vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 32% 50%, transparent 0%, transparent 40%, var(--ground) 92%);
+    pointer-events: none;
+  }
+
+  .stage {
+    position: relative;
+    width: 1280px;
+    height: 640px;
+    display: grid;
+    grid-template-columns: 760px 520px;
+  }
+
+  /* ---------- left: wordmark column ---------- */
+  .content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 22px;
+    padding: 0 0 0 88px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 15px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow .rule {
+    width: 28px;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.6;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 68px;
+    line-height: 1.02;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  h1 .dim { color: var(--ink-muted); font-weight: 500; }
+
+  .tagline {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 24px;
+    color: var(--ink-muted);
+    max-width: 46ch;
+  }
+
+  .desc {
+    font-family: var(--serif);
+    font-size: 19px;
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 40ch;
+    opacity: 0.92;
+  }
+  .desc b {
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  .divider {
+    width: 100%;
+    max-width: 460px;
+    height: 1px;
+    background: linear-gradient(to right, var(--ink-faint), transparent);
+    margin-top: 4px;
+  }
+
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .badges span { display: flex; align-items: center; gap: 8px; }
+  .badges .dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  /* ---------- right: lattice panel ---------- */
+  .lattice-panel {
+    position: relative;
+    border-left: 1px solid rgba(143, 160, 184, 0.14);
+  }
+  canvas {
+    position: absolute;
+    inset: 0;
+  }
+  .caption-scrim {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 246px;
+    background: linear-gradient(to top, var(--ground) 52%, transparent 100%);
+    pointer-events: none;
+  }
+  .lattice-caption {
+    position: absolute;
+    left: 40px;
+    bottom: 36px;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    max-width: 320px;
+    line-height: 1.6;
+  }
+  .lattice-caption b { color: var(--ink-muted); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="vignette"></div>
+  <div class="stage">
+    <div class="content">
+      <div class="eyebrow"><span class="rule"></span>FIPS&nbsp;203&nbsp;·&nbsp;204&nbsp;·&nbsp;205&nbsp;—&nbsp;POST-QUANTUM&nbsp;CRYPTOGRAPHY</div>
+      <h1>smp-pqc<span class="dim">-testkit</span></h1>
+      <div class="tagline">Sovereign Mohawk Post-Quantum Test Kit</div>
+      <div class="desc"><b>ML-KEM · ML-DSA · SLH-DSA</b> in pure Rust — validated against NIST's own ACVP reference vectors, not just internal self-consistency.</div>
+      <div class="divider"></div>
+      <div class="badges">
+        <span><i class="dot"></i>RUST</span>
+        <span><i class="dot"></i>APACHE-2.0</span>
+        <span><i class="dot"></i>NIST ACVP-TESTED</span>
+        <span><i class="dot"></i>LEAN 4 VERIFIED</span>
+      </div>
+    </div>
+    <div class="lattice-panel">
+      <canvas id="lattice" width="520" height="640"></canvas>
+      <div class="caption-scrim"></div>
+      <div class="lattice-caption"><b>Closest Vector Problem</b> — the hard lattice problem ML-KEM/ML-DSA's security rests on. Given the lattice and a target point, finding the nearest lattice vector is easy in low dimensions, intractable at cryptographic scale — for classical and quantum computers alike.</div>
+    </div>
+  </div>
+
+<script>
+(function () {
+  const canvas = document.getElementById('lattice');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+
+  const ink = '#E8EDF4';
+  const inkMuted = '#8FA0B8';
+  const inkFaint = 'rgba(143, 160, 184, 0.55)';
+  const accent = '#4FD8E0';
+  const accentDim = 'rgba(79, 216, 224, 0.28)';
+  const warm = '#E08A4F';
+
+  // A real 2D lattice: integer combinations of two basis vectors,
+  // projected into canvas space. b1/b2 are deliberately non-orthogonal
+  // (a "bad-looking" reduced basis), which is the actual visual signature
+  // of a lattice basis in these schemes.
+  const scale = 46;
+  const b1 = { x: 1.0, y: 0.18 };
+  const b2 = { x: 0.32, y: 0.98 };
+  const originX = 150, originY = 430;
+
+  function toCanvas(n, m) {
+    return {
+      x: originX + (n * b1.x + m * b2.x) * scale,
+      y: originY - (n * b1.y + m * b2.y) * scale
+    };
+  }
+
+  // background lattice points across the whole panel
+  ctx.fillStyle = accentDim;
+  const pts = [];
+  for (let n = -4; n <= 9; n++) {
+    for (let m = -8; m <= 3; m++) {
+      const p = toCanvas(n, m);
+      if (p.x > -20 && p.x < W + 20 && p.y > -20 && p.y < H + 20) {
+        pts.push({ n, m, p });
+      }
+    }
+  }
+  pts.forEach(({ p }) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // faint connecting mesh between neighboring points along both basis
+  // directions, so the lattice reads as a structured grid, not scatter
+  ctx.strokeStyle = 'rgba(79, 216, 224, 0.12)';
+  ctx.lineWidth = 1;
+  pts.forEach(({ n, m, p }) => {
+    const right = toCanvas(n + 1, m);
+    const up = toCanvas(n, m + 1);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(right.x, right.y);
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(up.x, up.y);
+    ctx.stroke();
+  });
+
+  // origin
+  const O = toCanvas(0, 0);
+  const B1 = toCanvas(1, 0);
+  const B2 = toCanvas(0, 1);
+
+  function drawVector(from, to, color, width) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+    // arrowhead
+    const angle = Math.atan2(to.y - from.y, to.x - from.x);
+    const size = 9;
+    ctx.beginPath();
+    ctx.moveTo(to.x, to.y);
+    ctx.lineTo(to.x - size * Math.cos(angle - 0.32), to.y - size * Math.sin(angle - 0.32));
+    ctx.lineTo(to.x - size * Math.cos(angle + 0.32), to.y - size * Math.sin(angle + 0.32));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  drawVector(O, B1, accent, 2.4);
+  drawVector(O, B2, accent, 2.4);
+
+  ctx.fillStyle = O ? accent : accent;
+  ctx.beginPath();
+  ctx.arc(O.x, O.y, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = '600 15px "Cascadia Code", Consolas, monospace';
+  ctx.fillStyle = accent;
+  ctx.fillText('b₁', B1.x + 8, B1.y + 4);
+  ctx.fillText('b₂', B2.x + 6, B2.y - 8);
+
+  // Target point (not on the lattice) + its nearest lattice vector --
+  // the actual Closest Vector Problem
+  const target = { x: originX + 268, y: originY - 214 };
+  const nearest = toCanvas(4, 2);
+
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = 'rgba(224, 138, 79, 0.85)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(nearest.x, nearest.y);
+  ctx.lineTo(target.x, target.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // ring around nearest lattice point
+  ctx.strokeStyle = warm;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.arc(nearest.x, nearest.y, 7, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // target point
+  ctx.fillStyle = warm;
+  ctx.beginPath();
+  ctx.arc(target.x, target.y, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = 'italic 14px Constantia, Georgia, serif';
+  ctx.fillStyle = warm;
+  ctx.fillText('target (secret)', target.x + 12, target.y - 8);
+
+  ctx.font = '13px "Cascadia Code", Consolas, monospace';
+  ctx.fillStyle = inkMuted;
+  ctx.fillText('nearest vector', nearest.x - 92, nearest.y + 24);
+})();
+</script>
+</body>
+</html>
