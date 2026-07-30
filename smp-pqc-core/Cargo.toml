@@ -9,6 +9,10 @@ readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 
+[[bin]]
+name = "smp-pqc-core"
+path = "src/main.rs"
+
 [dependencies]
 anyhow.workspace = true
 ml-dsa = { version = "0.1.1", features = ["zeroize"] }
@@ -30,3 +34,15 @@ dudect-bencher = "0.7.0"
 hex = "0.4"
 proptest = "1.11.0"
 rand = "0.8"
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "dudect_ml_kem_decap"
+path = "examples/dudect_ml_kem_decap.rs"
+
+[[example]]
+name = "mohawk_nexus_integration"
+path = "examples/mohawk_nexus_integration.rs"
