@@ -9,10 +9,6 @@ readme = "README.md"
 keywords.workspace = true
 categories.workspace = true
 
-[[bin]]
-name = "smp-pqc-core"
-path = "src/main.rs"
-
 [dependencies]
 anyhow.workspace = true
 ml-dsa = { version = "0.1.1", features = ["zeroize"] }
