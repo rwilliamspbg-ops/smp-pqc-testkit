@@ -1,0 +1,22 @@
+[package]
+name = "smp-pqc-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Safe Rust abstractions over NIST PQC algorithms (ML-KEM, ML-DSA, SLH-DSA) and classical/PQC hybrids"
+
+[dependencies]
+anyhow.workspace = true
+ml-dsa = { version = "0.1.1", features = ["zeroize"] }
+ml-kem = { version = "0.3.2", features = ["getrandom", "zeroize"] }
+rand = "0.8"
+rand_core = "0.10.1"
+serde.workspace = true
+serde_json.workspace = true
+slh-dsa = "0.1.0"
+thiserror.workspace = true
+x25519-dalek = { version = "3.0.0", features = ["getrandom", "static_secrets"] }
+
+[dev-dependencies]
+hex = "0.4"
