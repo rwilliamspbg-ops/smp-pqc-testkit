@@ -41,6 +41,15 @@ Early scaffold. What actually works today:
   Narrow in scope (there's no byte-serialization API to fuzz yet — see
   [docs/threat-model.md](docs/threat-model.md)) and Linux-only in practice;
   runs in CI, not on this project's Windows dev machine.
+- `test-vectors/acvp` + `smp-pqc-core/tests/acvp.rs`: KAT smoke tests against
+  NIST's own ACVP-Server reference vectors (ML-KEM keygen + decapsulation
+  including NIST's own implicit-rejection cases; ML-DSA/SLH-DSA keygen; ML-DSA/
+  SLH-DSA signature verification including deliberately-corrupted negative
+  cases, with context strings). This validates the underlying RustCrypto
+  crates against NIST's ground truth, not just internal self-consistency —
+  see [test-vectors/acvp/SOURCE.md](test-vectors/acvp/SOURCE.md) for exactly
+  what's covered and what isn't (no prehash mode, no ML-KEM encapsulation
+  direction yet).
 
 Everything else named in the roadmap below — TLS/SSH scanning, CBOM
 inventory, formal verification, TEE attestation, AF_XDP benchmarking,
@@ -70,9 +79,10 @@ cargo run -p smp-pqc-cli -- test sig slh-dsa-shake-128f --iterations 20 --report
 cargo bench -p smp-pqc-bench --bench kem
 cargo bench -p smp-pqc-bench --bench sig
 
-# Run the test suite (takes ~70-90s: SLH-DSA-256s alone is ~1-2 min/sign in
-# an unoptimized build without the workspace's dependency opt-level override
-# -- see Cargo.toml and smp-pqc-core/src/sig.rs for why)
+# Run the test suite, including NIST ACVP KAT checks (takes ~100-110s:
+# SLH-DSA-256s alone is ~1-2 min/sign in an unoptimized build without the
+# workspace's dependency opt-level override -- see Cargo.toml and
+# smp-pqc-core/src/sig.rs for why)
 cargo test --workspace
 ```
 
@@ -89,7 +99,7 @@ smp-pqc-testkit/
 │   └── fuzz/           # cargo-fuzz target for the algorithm-name parsers (Linux-only)
 ├── smp-pqc-cli/      # smp-pqc binary
 ├── smp-pqc-bench/    # Criterion benchmarks (keygen/encap/decap, keygen/sign/verify)
-├── test-vectors/      # (planned) NIST ACVP KATs
+├── test-vectors/acvp/ # Sampled NIST ACVP-Server reference vectors + provenance (SOURCE.md)
 ├── docs/               # Threat model, architecture notes
 └── examples/           # (planned) Mohawk-Nexus / SMIP-MWP-Rust integration demos
 ```
