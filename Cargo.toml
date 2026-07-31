@@ -9,8 +9,14 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.0"
+version = "1.0.0"
 edition = "2021"
+# Verified locally (`cargo +1.88.0 build/test --workspace --all-targets
+# --locked`) rather than bisected byte-for-byte; the floor is set by
+# criterion 0.8's/time 0.3's own MSRV, not this workspace's code. Checked
+# in CI (msrv job in ci.yml) so a dependency bump that raises the real
+# floor gets caught instead of silently drifting past this number.
+rust-version = "1.88.0"
 license = "Apache-2.0"
 repository = "https://github.com/rwilliamspbg-ops/smp-pqc-testkit"
 # Shared crates.io metadata. Individual crates that warrant more specific

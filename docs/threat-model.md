@@ -146,6 +146,34 @@ Read that result correctly:
   This is a manual/local diagnostic tool, run deliberately on a quiet
   machine, not an automated gate.
 
+## Supply-chain / dependency advisories
+
+`cargo deny check` (`deny.toml`, `cargo-deny` CI job) gates every dependency
+against the RustSec advisory database, license compliance, and unexpected
+registries/git sources on every push. Three advisories are explicitly
+ignored rather than silently passing:
+
+- **RUSTSEC-2021-0139** (`ansi_term` unmaintained) and **RUSTSEC-2024-0375**
+  (`atty` unmaintained): both pulled in only via `dudect-bencher` (a
+  dev-dependency of `smp-pqc-core`'s constant-time-check examples) ->
+  `clap 2.34.0`. Dev-dependencies never appear in a published crate's
+  manifest, so this never reaches anyone depending on `smp-pqc-core` from
+  crates.io -- it only affects building/testing this workspace directly.
+  No safe upgrade exists (dudect-bencher 0.7.0 is the latest release and
+  still pins clap 2).
+- **RUSTSEC-2023-0071** (`rsa` "Marvin Attack" timing side-channel): pulled
+  in transitively via `smp-pqc-network`'s *non-dev* dependency on
+  `russh`/`ssh-key` (SSH RSA host-key and signature support). No safe
+  upgrade is available upstream. `scan ssh` is a client that never holds
+  or exercises its own RSA private key -- it only verifies signatures the
+  remote host presents using the host's public key, so the exploitable
+  path (private-key timing leakage during decrypt/sign) isn't reachable
+  through this crate's use of `russh`. This is a real, tracked risk for
+  anyone who builds a different, key-holding use of `russh`/`rsa` on top
+  of `smp-pqc-network`, though -- it is not eliminated, only not currently
+  exercised by this crate's own code. Revisit when RustCrypto/RSA ships a
+  constant-time fix.
+
 ## Authorized-use note for network scanning
 
 `smp-pqc-network`'s TLS scanner (`smp-pqc scan tls <host>`) and SSH scanner

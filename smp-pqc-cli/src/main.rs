@@ -385,7 +385,8 @@ fn run_test(kind: TestKind, config: &CliConfig) -> Result<()> {
                 None,
             );
             let algorithm: sig::SigAlgorithm = algo.parse()?;
-            let r = sig::run(algorithm, merged.iterations);
+            let iterations = merged.iterations;
+            let r = run_on_large_stack(move || sig::run(algorithm, iterations))?;
             print_report(&r, r.all_passed(), &merged.report)?;
             check_sig_report(&r)?;
             Ok(())
@@ -559,15 +560,30 @@ fn run_verify_all(
     Ok(())
 }
 
-/// Run a representative subset of SIG tests in a thread with increased stack size
-/// to avoid stack overflow on Windows (where the default 1MB stack is too small
-/// for SLH-DSA's deep recursion).
-fn run_sig_tests_with_large_stack() -> Result<Vec<(String, sig::SigReport)>> {
-    let builder = thread::Builder::new()
-        .name("verify-all-sig".into())
-        .stack_size(16 * 1024 * 1024); // 16 MB stack
+/// Run `f` on a dedicated thread with a 16 MB stack instead of the calling
+/// thread's default (1 MB on Windows), which SIG algorithms (ML-DSA's large
+/// polynomial arrays, SLH-DSA's deep hash-tree recursion) can overflow --
+/// reproduced with `smp-pqc test sig ml-dsa-65` under rustc 1.88.0, where
+/// slightly different stack-frame codegen tips the main thread over the
+/// limit even though the same call doesn't overflow under every toolchain.
+fn run_on_large_stack<T, F>(f: F) -> Result<T>
+where
+    T: Send + 'static,
+    F: FnOnce() -> T + Send + 'static,
+{
+    let handle = thread::Builder::new()
+        .name("smp-pqc-sig-worker".into())
+        .stack_size(16 * 1024 * 1024)
+        .spawn(f)?;
+    handle
+        .join()
+        .map_err(|_| anyhow::anyhow!("SIG worker thread panicked"))
+}
 
-    let handle = builder.spawn(|| {
+/// Run a representative subset of SIG tests on a large-stack thread (see
+/// `run_on_large_stack`).
+fn run_sig_tests_with_large_stack() -> Result<Vec<(String, sig::SigReport)>> {
+    run_on_large_stack(|| {
         let mut results = Vec::new();
         // Run a representative subset: ML-DSA-65 (NIST recommended) and one SLH-DSA
         let algos = [
@@ -579,11 +595,7 @@ fn run_sig_tests_with_large_stack() -> Result<Vec<(String, sig::SigReport)>> {
             results.push((algo.name().to_string(), r));
         }
         results
-    })?;
-
-    handle
-        .join()
-        .map_err(|_| anyhow::anyhow!("SIG test thread panicked"))
+    })
 }
 
 #[cfg(test)]

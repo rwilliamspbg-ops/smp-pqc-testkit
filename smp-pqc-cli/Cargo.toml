@@ -19,9 +19,9 @@ path = "src/main.rs"
 # refuses to publish path-only deps without one. Keep this in sync with
 # [workspace.package].version when bumping -- .github/workflows/publish.yml
 # checks this before publishing and fails loudly if it drifts.
-smp-pqc-core = { path = "../smp-pqc-core", version = "0.2.0" }
-smp-pqc-network = { path = "../smp-pqc-network", version = "0.2.0" }
-smp-pqc-inventory = { path = "../smp-pqc-inventory", version = "0.2.0" }
+smp-pqc-core = { path = "../smp-pqc-core", version = "1.0.0" }
+smp-pqc-network = { path = "../smp-pqc-network", version = "1.0.0" }
+smp-pqc-inventory = { path = "../smp-pqc-inventory", version = "1.0.0" }
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true

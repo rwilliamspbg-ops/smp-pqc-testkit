@@ -10,6 +10,13 @@
  
 ```
 
+[![CI](https://github.com/rwilliamspbg-ops/smp-pqc-testkit/actions/workflows/ci.yml/badge.svg)](https://github.com/rwilliamspbg-ops/smp-pqc-testkit/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/rwilliamspbg-ops/smp-pqc-testkit/branch/main/graph/badge.svg)](https://codecov.io/gh/rwilliamspbg-ops/smp-pqc-testkit)
+[![crates.io](https://img.shields.io/crates/v/smp-pqc-core.svg)](https://crates.io/crates/smp-pqc-core)
+[![docs.rs](https://img.shields.io/docsrs/smp-pqc-core)](https://docs.rs/smp-pqc-core)
+[![MSRV](https://img.shields.io/badge/MSRV-1.88.0-orange.svg)](Cargo.toml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 Sovereign Mohawk Post-Quantum Cryptography Test Kit
 
 A Rust workspace for testing NIST post-quantum cryptography (FIPS 203 ML-KEM,
@@ -39,7 +46,7 @@ See [SECURITY.md](SECURITY.md) for our security vulnerability reporting process.
 
 ## Status
 
-Pre-1.0, actively developed. What actually works today:
+1.0.0, stable API. What actually works today:
 
 - `smp-pqc-core`: safe wrappers over [`ml-kem`](https://crates.io/crates/ml-kem),
   [`ml-dsa`](https://crates.io/crates/ml-dsa), and [`slh-dsa`](https://crates.io/crates/slh-dsa)
@@ -51,13 +58,18 @@ Pre-1.0, actively developed. What actually works today:
 - `smp-pqc-bench`: real Criterion benchmarks for keygen/encapsulate/decapsulate
   and keygen/sign/verify across every ML-KEM/ML-DSA/SLH-DSA parameter set,
   plus an X25519 classical baseline for comparison.
-- Test suite: 95%+ line coverage / 95%+ function coverage across
-  `smp-pqc-core` + `smp-pqc-cli` (enforced in CI via `cargo-llvm-cov`),
-  including proptest-based property tests (arbitrary-message
-  signing, single-byte ciphertext/message tamper rejection across randomized
-  offsets), adversarial tests (wrong keys, corrupted signature/ciphertext
-  bytes, ML-KEM implicit rejection), and CLI-level integration tests via
-  `assert_cmd`.
+- Test suite: `smp-pqc-core`'s algorithm logic (kem.rs/sig.rs) is at 95%+
+  line/function coverage; `smp-pqc-cli`'s argument-dispatch/config-merge
+  code (main.rs/config.rs) is at ~60-65% — lower, mostly because several
+  branches need a live host or a specific flag combination to exercise.
+  Both floors are enforced separately in CI via `cargo-llvm-cov` (90%/60%
+  respectively, giving a small margin below the measured numbers), rather
+  than one combined figure that would either be unenforceable or mask a
+  real regression in the higher-coverage crate. Includes proptest-based
+  property tests (arbitrary-message signing, single-byte ciphertext/message
+  tamper rejection across randomized offsets), adversarial tests (wrong
+  keys, corrupted signature/ciphertext bytes, ML-KEM implicit rejection),
+  and CLI-level integration tests via `assert_cmd`.
 - `smp-pqc-core/fuzz`: a `cargo-fuzz` target for the algorithm-name parsers.
   Narrow in scope (there's no byte-serialization API to fuzz yet — see
   [docs/threat-model.md](docs/threat-model.md)) and Linux-only in practice;
@@ -188,6 +200,9 @@ smp-pqc-testkit/
 ├── smp-pqc-inventory/  # Cryptography inventory / CycloneDX CBOM generation
 ├── smp-pqc-verify/     # Lean 4 project: machine-checked control-flow proofs
 ├── docs/                 # Threat model, architecture notes
+├── .github/              # CI/publish workflows, issue/PR templates, Dependabot
+├── justfile              # Common dev commands (`just --list`)
+├── deny.toml             # cargo-deny: advisories/licenses/bans/sources gate
 ├── CONTRIBUTING.md       # Contribution guidelines
 ├── CODE_OF_CONDUCT.md    # Community standards
 └── SECURITY.md           # Security policy

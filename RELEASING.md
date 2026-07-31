@@ -29,15 +29,21 @@ a consumer to depend on) and is never published. `smp-pqc-verify` is a Lean
    under the new version heading with today's date, in the same style as
    the existing `[0.1.0]` entry.
 4. Run the full local verification pass before tagging (matches what CI
-   checks, run here first so a red CI run doesn't happen on a pushed tag):
+   checks, run here first so a red CI run doesn't happen on a pushed tag).
+   `just release-check` runs all of this in one shot:
    ```bash
    cargo build --workspace --all-targets --locked
    cargo test --workspace --locked
    cargo fmt --all -- --check
    cargo clippy --workspace --all-targets -- -D warnings
    cargo doc --workspace --no-deps
+   cargo deny check
    (cd smp-pqc-verify && lake build)
    ```
+   Also worth a manual check before a major release: CI's `msrv` job
+   pins an exact toolchain (see `rust-version` in the root `Cargo.toml`)
+   that isn't covered by the commands above unless you have it installed
+   locally (`just msrv`).
 5. Commit (`Release vX.Y.Z` or similar), then tag and push:
    ```bash
    git tag -a vX.Y.Z -m "vX.Y.Z - <one-line summary>"

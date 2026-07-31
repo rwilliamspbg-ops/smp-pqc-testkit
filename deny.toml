@@ -1,0 +1,66 @@
+# cargo-deny configuration -- run via `cargo deny check` (or `just deny`).
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+all-features = false
+no-default-features = false
+
+[advisories]
+ignore = [
+    # ansi_term/atty: pulled in only via dudect-bencher (a dev-dependency
+    # used by smp-pqc-core's constant-time-check examples) -> clap 2.34.0.
+    # Dev-dependencies are never part of a published crate's dependency
+    # graph (cargo strips them from the manifest consumers see), so this
+    # never reaches a downstream consumer of smp-pqc-core -- it only
+    # affects building/testing this workspace itself. No safe upgrade
+    # exists (dudect-bencher 0.7.0 is the latest release and still pins
+    # clap 2), so there's nothing to bump to.
+    { id = "RUSTSEC-2021-0139", reason = "dev-only via dudect-bencher -> clap 2.34.0 -> ansi_term; not part of any published crate's dependency graph" },
+    { id = "RUSTSEC-2024-0375", reason = "dev-only via dudect-bencher -> clap 2.34.0 -> atty; not part of any published crate's dependency graph" },
+    # rsa (Marvin Attack timing side-channel): pulled in transitively via
+    # smp-pqc-network's *non-dev* dependency on russh/ssh-key (SSH RSA host
+    # key + signature support). No safe upgrade is available upstream yet
+    # (see the advisory). smp-pqc-network's `scan ssh` is a client that
+    # never holds or exercises its own RSA private key -- it only verifies
+    # signatures the server presents with the server's public key, so the
+    # exploitable path (private-key timing during decrypt/sign) isn't
+    # reachable through this crate's own use of russh. Documented in
+    # docs/threat-model.md's "Supply-chain / dependency advisories"
+    # section; revisit when RustCrypto/RSA ships a constant-time fix.
+    { id = "RUSTSEC-2023-0071", reason = "transitive via russh/ssh-key SSH host-key support; scan-ssh is a client, never exercises its own RSA private key -- see docs/threat-model.md" },
+]
+
+[licenses]
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "MPL-2.0",
+    "0BSD",
+    # webpki-roots/webpki-root-certs bundle the Mozilla CA root store data
+    # under CDLA-Permissive-2.0 -- a permissive open-data license, not a
+    # code license, but it's what those crates declare in Cargo.toml.
+    "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.8
+
+[licenses.private]
+ignore = false
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+highlight = "all"
+workspace-default-features = "allow"
+external-default-features = "allow"
+
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

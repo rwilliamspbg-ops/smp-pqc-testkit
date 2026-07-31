@@ -2816,7 +2816,7 @@ dependencies = [
 
 [[package]]
 name = "smp-pqc-bench"
-version = "0.2.0"
+version = "1.0.0"
 dependencies = [
  "criterion",
  "ml-dsa",
@@ -2828,7 +2828,7 @@ dependencies = [
 
 [[package]]
 name = "smp-pqc-cli"
-version = "0.2.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -2847,7 +2847,7 @@ dependencies = [
 
 [[package]]
 name = "smp-pqc-core"
-version = "0.2.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "dudect-bencher",
@@ -2867,7 +2867,7 @@ dependencies = [
 
 [[package]]
 name = "smp-pqc-inventory"
-version = "0.2.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -2880,7 +2880,7 @@ dependencies = [
 
 [[package]]
 name = "smp-pqc-network"
-version = "0.2.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "quinn",
