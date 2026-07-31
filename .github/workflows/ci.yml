@@ -70,7 +70,7 @@ jobs:
           cargo llvm-cov -p smp-pqc-cli --bins --tests --locked --summary-only \
             --fail-under-lines 90 --fail-under-functions 80
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: lcov-core.info,lcov-cli.info
           flags: unittests
