@@ -68,9 +68,9 @@ enum Command {
         /// Run inventory on current workspace.
         #[arg(long)]
         inventory: bool,
-        /// Output format for results.
-        #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
-        report: ReportFormat,
+        /// Output format for results. Defaults to text if not set here or in --config.
+        #[arg(long, value_enum)]
+        report: Option<ReportFormat>,
     },
     /// TEE harness: run inside a trusted execution environment and attest results.
     TeeRun {
@@ -87,18 +87,22 @@ enum TestKind {
         /// Also run the X25519 + ML-KEM-768 hybrid instead of (or alongside) the bare algorithm.
         #[arg(long)]
         hybrid: bool,
-        #[arg(long, default_value_t = 1000)]
-        iterations: usize,
-        #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
-        report: ReportFormat,
+        /// Defaults to 1000 if not set here or in --config.
+        #[arg(long)]
+        iterations: Option<usize>,
+        /// Defaults to text if not set here or in --config.
+        #[arg(long, value_enum)]
+        report: Option<ReportFormat>,
     },
     /// Test a signature algorithm (ML-DSA-44/65/87, SLH-DSA-*).
     Sig {
         algo: String,
-        #[arg(long, default_value_t = 1000)]
-        iterations: usize,
-        #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
-        report: ReportFormat,
+        /// Defaults to 1000 if not set here or in --config.
+        #[arg(long)]
+        iterations: Option<usize>,
+        /// Defaults to text if not set here or in --config.
+        #[arg(long, value_enum)]
+        report: Option<ReportFormat>,
     },
 }
 
@@ -119,10 +123,12 @@ enum ScanKind {
         /// this provides no protection against a man-in-the-middle.
         #[arg(long)]
         insecure: bool,
-        #[arg(long, default_value_t = 10)]
-        timeout_secs: u64,
-        #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
-        report: ReportFormat,
+        /// Defaults to 10 if not set here or in --config.
+        #[arg(long)]
+        timeout_secs: Option<u64>,
+        /// Defaults to text if not set here or in --config.
+        #[arg(long, value_enum)]
+        report: Option<ReportFormat>,
     },
     /// Scan an SSH endpoint's negotiated key-exchange algorithm for PQC/hybrid support.
     ///
@@ -136,10 +142,12 @@ enum ScanKind {
         /// Exit non-zero if the negotiated key-exchange algorithm is not PQC/hybrid.
         #[arg(long)]
         pqc_only: bool,
-        #[arg(long, default_value_t = 10)]
-        timeout_secs: u64,
-        #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
-        report: ReportFormat,
+        /// Defaults to 10 if not set here or in --config.
+        #[arg(long)]
+        timeout_secs: Option<u64>,
+        /// Defaults to text if not set here or in --config.
+        #[arg(long, value_enum)]
+        report: Option<ReportFormat>,
     },
     /// Scan a QUIC endpoint's negotiated key-exchange algorithm for PQC/hybrid support.
     ///
@@ -152,10 +160,12 @@ enum ScanKind {
         /// Exit non-zero if the negotiated key-exchange algorithm is not PQC/hybrid.
         #[arg(long)]
         pqc_only: bool,
-        #[arg(long, default_value_t = 10)]
-        timeout_secs: u64,
-        #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
-        report: ReportFormat,
+        /// Defaults to 10 if not set here or in --config.
+        #[arg(long)]
+        timeout_secs: Option<u64>,
+        /// Defaults to text if not set here or in --config.
+        #[arg(long, value_enum)]
+        report: Option<ReportFormat>,
     },
 }
 
@@ -210,8 +220,8 @@ fn main() -> Result<()> {
             } => {
                 let merged = config.merge_with_cli(
                     None,
-                    Some(report.to_string()),
-                    Some(timeout_secs),
+                    report.map(|r| r.to_string()),
+                    timeout_secs,
                     Some(pqc_only),
                     Some(insecure),
                     None,
@@ -246,8 +256,8 @@ fn main() -> Result<()> {
             } => {
                 let merged = config.merge_with_cli(
                     None,
-                    Some(report.to_string()),
-                    Some(timeout_secs),
+                    report.map(|r| r.to_string()),
+                    timeout_secs,
                     Some(pqc_only),
                     None,
                     None,
@@ -278,8 +288,8 @@ fn main() -> Result<()> {
             } => {
                 let merged = config.merge_with_cli(
                     None,
-                    Some(report.to_string()),
-                    Some(timeout_secs),
+                    report.map(|r| r.to_string()),
+                    timeout_secs,
                     Some(pqc_only),
                     None,
                     None,
@@ -344,8 +354,8 @@ fn run_test(kind: TestKind, config: &CliConfig) -> Result<()> {
             report,
         } => {
             let merged = config.merge_with_cli(
-                Some(iterations),
-                Some(report.to_string()),
+                iterations,
+                report.map(|r| r.to_string()),
                 None,
                 None,
                 None,
@@ -376,8 +386,8 @@ fn run_test(kind: TestKind, config: &CliConfig) -> Result<()> {
             report,
         } => {
             let merged = config.merge_with_cli(
-                Some(iterations),
-                Some(report.to_string()),
+                iterations,
+                report.map(|r| r.to_string()),
                 None,
                 None,
                 None,
@@ -497,11 +507,18 @@ fn run_verify_all(
     bench: bool,
     scan: bool,
     inventory: bool,
-    report: ReportFormat,
+    report: Option<ReportFormat>,
     config: &CliConfig,
 ) -> Result<()> {
-    let merged =
-        config.merge_with_cli(None, Some(report.to_string()), None, None, None, None, None);
+    let merged = config.merge_with_cli(
+        None,
+        report.map(|r| r.to_string()),
+        None,
+        None,
+        None,
+        None,
+        None,
+    );
     let mut all_passed = true;
 
     // Run core KEM tests

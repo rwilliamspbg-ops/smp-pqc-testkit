@@ -14,9 +14,20 @@ functionality 0.2.0 already shipped, not new cryptographic surface.
 - **Enforced coverage thresholds**: the `coverage` CI job now actually fails
   the build below a real floor instead of just generating a report nobody
   gates on. Split into two per-crate checks (`smp-pqc-core` >= 90% lines/
-  functions, `smp-pqc-cli` >= 60%) rather than one combined threshold,
-  because the two crates are at very different coverage levels -- see the
-  "Fixed" section below for the corrected README claim this replaces.
+  functions, `smp-pqc-cli` >= 90% lines / 80% functions) rather than one
+  combined threshold, because the two crates were at very different
+  coverage levels -- see the "Fixed" section below for the corrected
+  README claim this replaces, and for how `smp-pqc-cli` closed most of
+  that gap.
+- **New `smp-pqc-cli` tests** closing the coverage gap noted above:
+  `CliConfig::load` unit tests (valid TOML, missing file, invalid TOML --
+  previously untested entirely); `verify-all` integration tests (plain,
+  and with `--bench --scan --inventory`, covering `run_verify_all` and
+  `run_sig_tests_with_large_stack` -- previously 0% covered despite
+  `verify-all` being documented as "a meta-command for CI integration");
+  a `scan quic` unreachable-host test mirroring the existing TLS/SSH ones;
+  and end-to-end `--config <toml>` tests (which is how the bug directly
+  below was found).
 - **Pinned MSRV** (`rust-version = "1.88.0"` in `[workspace.package]`),
   verified locally (`cargo +1.88.0 build/test --workspace --all-targets
   --locked`) and checked on every push via a new `msrv` CI job. The floor is
@@ -62,14 +73,34 @@ functionality 0.2.0 already shipped, not new cryptographic surface.
   toolchain's codegen happened not to trip it, which is why this wasn't
   caught before -- not evidence the bug wasn't there). Extracted a shared
   `run_on_large_stack` helper and applied it to both call sites.
-- **Corrected an inflated coverage claim**: the README stated "95%+ line
-  coverage / 95%+ function coverage across `smp-pqc-core` + `smp-pqc-cli`",
-  which was never true for `smp-pqc-cli` -- measured coverage is ~95%+ for
-  `smp-pqc-core` (kem.rs/sig.rs) but only ~60-65% for `smp-pqc-cli`
-  (main.rs/config.rs), largely CLI dispatch and config-merge branches that
-  need a live host or specific flag combinations to exercise. The README's
-  Status section and the CI coverage gate above now both reflect the real,
-  split numbers instead of one inflated combined figure.
+- **Corrected an inflated coverage claim, then closed most of the real
+  gap**: the README stated "95%+ line coverage / 95%+ function coverage
+  across `smp-pqc-core` + `smp-pqc-cli`", which was never true for
+  `smp-pqc-cli` -- measured coverage was ~95%+ for `smp-pqc-core`
+  (kem.rs/sig.rs) but only ~60-65% for `smp-pqc-cli` (main.rs/config.rs).
+  Writing the tests described above brought `smp-pqc-cli` to 95%+ lines /
+  85%+ functions (`config.rs` is now 100%); the remaining gap is
+  specifically SSH/QUIC's "handshake succeeded but didn't negotiate PQC"
+  branches, which need a local test server neither protocol has yet
+  (unlike `scan tls` -- see `docs/threat-model.md`). The README's Status
+  section and the CI coverage gate above now both reflect these real
+  numbers.
+- **`--config <toml>` was completely non-functional for every field it
+  claims to configure** (`iterations`, `report`, `timeout_secs`; `output`
+  was the one exception). Root cause: `iterations`/`report`/`timeout_secs`
+  all had a clap `default_value_t`, so the CLI parser always produced
+  `Some(value)` for them regardless of whether the flag was actually
+  typed -- `CliConfig::merge_with_cli`'s own CLI-then-config-then-hardcoded
+  -default fallback chain was correct, but it never got a `None` to fall
+  through on. Found by writing an end-to-end `--config` test (above) that
+  actually checked the config file's value took effect, rather than just
+  checking the command still ran. Fixed by changing those fields to
+  `Option<T>` with no clap default. Boolean toggle flags (`pqc_only`,
+  `insecure`, `cbom`) have the same root cause but are *not* fixed here --
+  making them `Option<bool>` would change their CLI syntax from a bare
+  `--cbom` flag to `--cbom <true|false>`, a real UX change rather than a
+  bugfix; documented as a known limitation in `smp-pqc-cli/src/config.rs`
+  instead.
 
 ## [0.2.0] - 2026-07-31
 

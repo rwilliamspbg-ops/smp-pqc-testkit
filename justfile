@@ -31,8 +31,8 @@ deny:
     cargo deny check
 
 # Per-crate coverage matching what ci.yml's `coverage` job enforces:
-# smp-pqc-core at a 90% floor, smp-pqc-cli at a 60% floor (see the comment
-# in ci.yml for why these differ).
+# smp-pqc-core at a 90% floor, smp-pqc-cli at a 90%/80% floor (see the
+# comment in ci.yml for why these differ).
 coverage:
     cargo llvm-cov -p smp-pqc-core --lib --tests --locked --summary-only
     cargo llvm-cov -p smp-pqc-cli --bins --tests --locked --summary-only

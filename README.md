@@ -60,15 +60,19 @@ See [SECURITY.md](SECURITY.md) for our security vulnerability reporting process.
   plus an X25519 classical baseline for comparison.
 - Test suite: `smp-pqc-core`'s algorithm logic (kem.rs/sig.rs) is at 95%+
   line/function coverage; `smp-pqc-cli`'s argument-dispatch/config-merge
-  code (main.rs/config.rs) is at ~60-65% — lower, mostly because several
-  branches need a live host or a specific flag combination to exercise.
-  Both floors are enforced separately in CI via `cargo-llvm-cov` (90%/60%
-  respectively, giving a small margin below the measured numbers), rather
-  than one combined figure that would either be unenforceable or mask a
-  real regression in the higher-coverage crate. Includes proptest-based
-  property tests (arbitrary-message signing, single-byte ciphertext/message
-  tamper rejection across randomized offsets), adversarial tests (wrong
-  keys, corrupted signature/ciphertext bytes, ML-KEM implicit rejection),
+  code (main.rs/config.rs) is at 95%+ lines / 85%+ functions, including a
+  `--config <toml>` end-to-end test and full `verify-all` coverage. The
+  remaining gap is specifically SSH/QUIC's "handshake succeeded but didn't
+  negotiate PQC" branches, which need a local test server neither protocol
+  has yet (unlike `scan tls`) — see `docs/threat-model.md`. Both floors are
+  enforced separately in CI via `cargo-llvm-cov` (90%/90% lines,
+  90%/80% functions for core/cli respectively, giving a small margin below
+  the measured numbers), rather than one combined figure that would either
+  be unenforceable or mask a real regression in the higher-coverage crate.
+  Includes proptest-based property tests (arbitrary-message signing,
+  single-byte ciphertext/message tamper rejection across randomized
+  offsets), adversarial tests (wrong keys, corrupted signature/ciphertext
+  bytes, ML-KEM implicit rejection),
   and CLI-level integration tests via `assert_cmd`.
 - `smp-pqc-core/fuzz`: a `cargo-fuzz` target for the algorithm-name parsers.
   Narrow in scope (there's no byte-serialization API to fuzz yet — see

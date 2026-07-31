@@ -50,10 +50,10 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       # Two separate invocations, not one combined `-p core -p cli`: the
-      # crates are at very different coverage levels (core's algorithm
-      # logic is ~95%+; cli's argument-dispatch/error-path code in
-      # main.rs/config.rs is ~65%, mostly network-scan and config-merge
-      # branches that need a live host or specific flag combos). A single
+      # crates are at different coverage levels (core's algorithm logic is
+      # ~95%+; cli's remaining gaps are SSH/QUIC's "server negotiated
+      # successfully but not PQC" branches, which need a local test server
+      # neither protocol has yet -- see docs/threat-model.md). A single
       # combined threshold would either fail permanently on cli's real
       # number or silently mask core regressions behind cli's slack.
       # Thresholds below are set at/near the current measured floor
@@ -64,11 +64,11 @@ jobs:
           cargo llvm-cov -p smp-pqc-core --lib --tests --locked --lcov --output-path lcov-core.info
           cargo llvm-cov -p smp-pqc-core --lib --tests --locked --summary-only \
             --fail-under-lines 90 --fail-under-functions 90
-      - name: Coverage - smp-pqc-cli (floor 60% lines / 60% functions)
+      - name: Coverage - smp-pqc-cli (floor 90% lines / 80% functions)
         run: |
           cargo llvm-cov -p smp-pqc-cli --bins --tests --locked --lcov --output-path lcov-cli.info
           cargo llvm-cov -p smp-pqc-cli --bins --tests --locked --summary-only \
-            --fail-under-lines 60 --fail-under-functions 60
+            --fail-under-lines 90 --fail-under-functions 80
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
