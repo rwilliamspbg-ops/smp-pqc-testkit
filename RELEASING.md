@@ -1,14 +1,18 @@
 # Releasing
 
-## One-time setup (not done yet)
+## One-time setup (done)
 
 `.github/workflows/publish.yml` publishes `smp-pqc-core`, `smp-pqc-network`,
 `smp-pqc-inventory`, and `smp-pqc-cli` to crates.io automatically when a
 `vX.Y.Z` tag is pushed. It needs a **`CARGO_REGISTRY_TOKEN` repository
 secret** — a crates.io API token with publish rights for these crate names
 — added under the repo's Settings → Secrets and variables → Actions.
-Nothing publishes until that secret exists; every `cargo publish` step
-before then just fails authentication.
+**This secret is already set on this repo** (confirmed via `gh secret
+list`), so pushing a `vX.Y.Z` tag really does publish to crates.io -- it
+is not a dry run. Double-check the version bump and CHANGELOG before
+tagging; there is no "undo" once a version is live (crates.io only
+supports yanking, which doesn't remove the version from the index, just
+discourages new dependents from resolving to it).
 
 `smp-pqc-bench` is `publish = false` (bench-only, no library — nothing for
 a consumer to depend on) and is never published. `smp-pqc-verify` is a Lean
