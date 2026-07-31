@@ -117,6 +117,22 @@ enum ScanKind {
         #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
         report: ReportFormat,
     },
+    /// Scan a QUIC endpoint's negotiated key-exchange algorithm for PQC/hybrid support.
+    ///
+    /// Only scan hosts you own or are explicitly authorized to test.
+    /// NOT YET IMPLEMENTED: returns a clear error message.
+    Quic {
+        host: String,
+        #[arg(long, default_value_t = 443)]
+        port: u16,
+        /// Exit non-zero if the negotiated key-exchange algorithm is not PQC/hybrid.
+        #[arg(long)]
+        pqc_only: bool,
+        #[arg(long, default_value_t = 10)]
+        timeout_secs: u64,
+        #[arg(long, value_enum, default_value_t = ReportFormat::Text)]
+        report: ReportFormat,
+    },
 }
 
 #[derive(Clone, Copy, ValueEnum)]
@@ -184,6 +200,33 @@ fn main() -> Result<()> {
                 print_report(&r, passed, report)?;
                 if let Some(err) = &r.error {
                     bail!("SSH scan of {host}:{port} failed: {err}");
+                }
+                if pqc_only && !r.is_pqc() {
+                    bail!(
+                        "{host}:{port} did not negotiate a PQC/hybrid key-exchange algorithm \
+                         (got {:?})",
+                        r.negotiated_kex
+                    );
+                }
+                Ok(())
+            }
+            ScanKind::Quic {
+                host,
+                port,
+                pqc_only,
+                timeout_secs,
+                report,
+            } => {
+                let timeout = Duration::from_secs(timeout_secs);
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| anyhow::anyhow!("failed to start async runtime: {e}"))?;
+                let r = rt.block_on(smp_pqc_network::quic::scan_quic(&host, port, timeout));
+                let passed = r.error.is_none() && (!pqc_only || r.is_pqc());
+                print_report(&r, passed, report)?;
+                if let Some(err) = &r.error {
+                    bail!("QUIC scan of {host}:{port} failed: {err}");
                 }
                 if pqc_only && !r.is_pqc() {
                     bail!(

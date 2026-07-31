@@ -90,6 +90,7 @@ table! {
     "x25519-dalek" => (KeyExchange, false, "X25519 ECDH"),
     "p256" => (KeyExchange, false, "NIST P-256; also used for ECDSA"),
     "p384" => (KeyExchange, false, "NIST P-384; also used for ECDSA"),
+    "hpke" => (KeyExchange, false, "Hybrid PKE (RFC 9180) -- classical only currently"),
 
     // --- Classical signatures ---
     "ed25519-dalek" => (Signature, false, "Ed25519"),
@@ -121,6 +122,8 @@ table! {
     // --- Secure transport protocol libraries ---
     "rustls" => (SecureProtocol, true, "TLS; supports ML-KEM/hybrid groups via aws-lc-rs since 0.23.x -- version-dependent, see smp-pqc-network"),
     "russh" => (SecureProtocol, true, "SSH; supports mlkem768x25519-sha256 hybrid KEX since 0.62.x -- version-dependent"),
+    "quinn" => (SecureProtocol, true, "QUIC; PQC KEX depends on rustls backend version"),
+    "quinn-proto" => (SecureProtocol, true, "QUIC protocol layer; PQC KEX depends on rustls backend version"),
     "openssl" => (SecureProtocol, false, "TLS (OpenSSL bindings); PQC group support is version/build-dependent and not assumed here"),
     "native-tls" => (SecureProtocol, false, "TLS (platform-native backend); PQC support depends entirely on the OS TLS stack"),
 
@@ -157,6 +160,7 @@ table! {
     "pem" => (CryptoUtility, false, "PEM encoding"),
     "elliptic-curve" => (CryptoUtility, false, "Shared elliptic-curve trait definitions (RustCrypto)"),
     "const-oid" => (CryptoUtility, false, "OID constants used in X.509/PKCS encoding"),
+    "tss-esapi" => (CryptoUtility, false, "TPM 2.0 TSS binding (for TEE attestation)"),
 }
 
 #[cfg(test)]
