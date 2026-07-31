@@ -13,7 +13,7 @@ categories.workspace = true
 anyhow.workspace = true
 ml-dsa = { version = "0.1.1", features = ["zeroize"] }
 ml-kem = { version = "0.3.2", features = ["getrandom", "zeroize"] }
-rand = "0.8"
+rand = "0.10"
 rand_core = "0.10.1"
 serde.workspace = true
 # Pinned: slh-dsa 0.1.0 breaks against signature >=2.3.0-pre.5 (that release
@@ -29,7 +29,7 @@ x25519-dalek = { version = "3.0.0", features = ["getrandom", "static_secrets"] }
 dudect-bencher = "0.7.0"
 hex = "0.4"
 proptest = "1.11.0"
-rand = "0.8"
+rand = "0.10"
 
 [[example]]
 name = "basic_usage"
