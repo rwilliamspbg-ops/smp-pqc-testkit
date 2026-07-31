@@ -111,6 +111,16 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # dtolnay/rust-toolchain's version tag selects *which Rust release
+      # to install for the msrv job (see ci.yml), not the action's own
+      # release -- Dependabot treats it like a normal semver bump anyway,
+      # which both defeats the point of pinning an MSRV and can propose a
+      # Rust version that doesn't exist yet (see the PR this closed:
+      # 1.100.0 404s against static.rust-lang.org as of this writing).
+      # Bumping the MSRV is a deliberate policy decision -- see
+      # RELEASING.md -- not a routine dependency update.
+      - dependency-name: "dtolnay/rust-toolchain"
 
   # Docker (if we add Dockerfile later)
   - package-ecosystem: "docker"
