@@ -134,9 +134,10 @@ async fn run_quic_scan(
             // The negotiated_key_exchange_group field is only available
             // with the `__rustls-post-quantum-test` feature on the rustls crate.
             // Since that feature is not available in stable releases, we report
-            // the limitation instead.
-            report.negotiated_kex = Some(
-                "KEX group detection requires rustls with __rustls-post-quantum-test feature"
+            // the limitation via error instead of a placeholder string.
+            report.negotiated_kex = None;
+            report.error = Some(
+                "KEX group detection requires rustls with __rustls-post-quantum-test feature (not available in stable releases)"
                     .to_string(),
             );
         }

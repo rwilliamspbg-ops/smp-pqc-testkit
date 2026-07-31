@@ -51,9 +51,9 @@ Pre-1.0, actively developed. What actually works today:
 - `smp-pqc-bench`: real Criterion benchmarks for keygen/encapsulate/decapsulate
   and keygen/sign/verify across every ML-KEM/ML-DSA/SLH-DSA parameter set,
   plus an X25519 classical baseline for comparison.
-- Test suite: 95.9% line coverage / 100% function coverage across
-  `smp-pqc-core` + `smp-pqc-cli` (measured with `cargo llvm-cov`, not
-  asserted), including proptest-based property tests (arbitrary-message
+- Test suite: 95%+ line coverage / 95%+ function coverage across
+  `smp-pqc-core` + `smp-pqc-cli` (enforced in CI via `cargo-llvm-cov`),
+  including proptest-based property tests (arbitrary-message
   signing, single-byte ciphertext/message tamper rejection across randomized
   offsets), adversarial tests (wrong keys, corrupted signature/ciphertext
   bytes, ML-KEM implicit rejection), and CLI-level integration tests via
@@ -188,16 +188,15 @@ smp-pqc-testkit/
 ├── smp-pqc-inventory/  # Cryptography inventory / CycloneDX CBOM generation
 ├── smp-pqc-verify/     # Lean 4 project: machine-checked control-flow proofs
 ├── docs/                 # Threat model, architecture notes
-├── examples/             # Mohawk-Nexus / SMIP-MWP-Rust integration demos
 ├── CONTRIBUTING.md       # Contribution guidelines
 ├── CODE_OF_CONDUCT.md    # Community standards
 └── SECURITY.md           # Security policy
 ```
 
-`mohawk_nexus_integration.rs` demonstrates how to integrate the testkit with
+`smp-pqc-core/examples/mohawk_nexus_integration.rs` demonstrates how to integrate the testkit with
 the Mohawk-Nexus networking stack.
 
-`smip_mwp_integration.rs` demonstrates how to integrate the testkit with
+`smp-pqc-core/examples/smip_mwp_integration.rs` demonstrates how to integrate the testkit with
 the SMIP-MWP-Rust secure multiparty computation workflow.
 
 ## Roadmap

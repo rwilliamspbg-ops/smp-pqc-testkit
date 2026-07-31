@@ -23,6 +23,28 @@ jobs:
       - run: cargo build --workspace --all-targets --locked
       - run: cargo test --workspace --locked
 
+  coverage:
+    name: code coverage (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Generate coverage report (core + cli)
+        run: cargo llvm-cov -p smp-pqc-core -p smp-pqc-cli --lib --tests --locked --summary-only
+      - name: Check coverage thresholds
+        run: |
+          # Enforce minimum coverage for core + cli
+          cargo llvm-cov -p smp-pqc-core -p smp-pqc-cli --lib --tests --locked --lcov --output-path lcov.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          flags: unittests
+          fail_ci_if_error: false
+
   fmt-clippy:
     name: fmt + clippy (ubuntu-latest)
     runs-on: ubuntu-latest

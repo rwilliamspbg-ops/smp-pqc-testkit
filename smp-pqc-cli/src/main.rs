@@ -2,7 +2,11 @@ use anyhow::{bail, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use smp_pqc_core::{kem, sig};
 use std::path::PathBuf;
+use std::thread;
 use std::time::Duration;
+
+mod config;
+use config::CliConfig;
 
 #[derive(Parser)]
 #[command(name = "smp-pqc", version, about = "Sovereign Mohawk PQC test kit")]
@@ -155,16 +159,33 @@ enum ScanKind {
     },
 }
 
-#[derive(Clone, Copy, ValueEnum)]
+#[derive(Clone, Copy, ValueEnum, Debug, serde::Serialize, serde::Deserialize)]
 enum ReportFormat {
     Text,
     Json,
 }
 
+impl std::fmt::Display for ReportFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReportFormat::Text => write!(f, "text"),
+            ReportFormat::Json => write!(f, "json"),
+        }
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
+
+    // Load config file if specified
+    let config = if let Some(config_path) = &cli.config {
+        CliConfig::load(config_path)?
+    } else {
+        CliConfig::default()
+    };
+
     match cli.command {
-        Command::Test { kind } => run_test(kind),
+        Command::Test { kind } => run_test(kind, &config),
         Command::Bench { afxdp, .. } => {
             if afxdp {
                 bail!(
@@ -187,18 +208,27 @@ fn main() -> Result<()> {
                 timeout_secs,
                 report,
             } => {
-                let timeout = Duration::from_secs(timeout_secs);
-                let r = if insecure {
+                let merged = config.merge_with_cli(
+                    None,
+                    Some(report.to_string()),
+                    Some(timeout_secs),
+                    Some(pqc_only),
+                    Some(insecure),
+                    None,
+                    None,
+                );
+                let timeout = Duration::from_secs(merged.timeout_secs);
+                let r = if merged.insecure {
                     smp_pqc_network::scan::scan_tls_insecure(&host, port, timeout)
                 } else {
                     smp_pqc_network::scan::scan_tls(&host, port, timeout)
                 };
-                let passed = r.error.is_none() && (!pqc_only || r.is_pqc());
-                print_report(&r, passed, report)?;
+                let passed = r.error.is_none() && (!merged.pqc_only || r.is_pqc());
+                print_report(&r, passed, &merged.report)?;
                 if let Some(err) = &r.error {
                     bail!("TLS scan of {host}:{port} failed: {err}");
                 }
-                if pqc_only && !r.is_pqc() {
+                if merged.pqc_only && !r.is_pqc() {
                     bail!(
                         "{host}:{port} did not negotiate a PQC/hybrid key-exchange group \
                          (got {:?})",
@@ -214,14 +244,23 @@ fn main() -> Result<()> {
                 timeout_secs,
                 report,
             } => {
-                let timeout = Duration::from_secs(timeout_secs);
+                let merged = config.merge_with_cli(
+                    None,
+                    Some(report.to_string()),
+                    Some(timeout_secs),
+                    Some(pqc_only),
+                    None,
+                    None,
+                    None,
+                );
+                let timeout = Duration::from_secs(merged.timeout_secs);
                 let r = smp_pqc_network::ssh::scan_ssh(&host, port, timeout);
-                let passed = r.error.is_none() && (!pqc_only || r.is_pqc());
-                print_report(&r, passed, report)?;
+                let passed = r.error.is_none() && (!merged.pqc_only || r.is_pqc());
+                print_report(&r, passed, &merged.report)?;
                 if let Some(err) = &r.error {
                     bail!("SSH scan of {host}:{port} failed: {err}");
                 }
-                if pqc_only && !r.is_pqc() {
+                if merged.pqc_only && !r.is_pqc() {
                     bail!(
                         "{host}:{port} did not negotiate a PQC/hybrid key-exchange algorithm \
                          (got {:?})",
@@ -237,18 +276,27 @@ fn main() -> Result<()> {
                 timeout_secs,
                 report,
             } => {
-                let timeout = Duration::from_secs(timeout_secs);
+                let merged = config.merge_with_cli(
+                    None,
+                    Some(report.to_string()),
+                    Some(timeout_secs),
+                    Some(pqc_only),
+                    None,
+                    None,
+                    None,
+                );
+                let timeout = Duration::from_secs(merged.timeout_secs);
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .map_err(|e| anyhow::anyhow!("failed to start async runtime: {e}"))?;
                 let r = rt.block_on(smp_pqc_network::quic::scan_quic(&host, port, timeout));
-                let passed = r.error.is_none() && (!pqc_only || r.is_pqc());
-                print_report(&r, passed, report)?;
+                let passed = r.error.is_none() && (!merged.pqc_only || r.is_pqc());
+                print_report(&r, passed, &merged.report)?;
                 if let Some(err) = &r.error {
                     bail!("QUIC scan of {host}:{port} failed: {err}");
                 }
-                if pqc_only && !r.is_pqc() {
+                if merged.pqc_only && !r.is_pqc() {
                     bail!(
                         "{host}:{port} did not negotiate a PQC/hybrid key-exchange algorithm \
                          (got {:?})",
@@ -258,7 +306,10 @@ fn main() -> Result<()> {
                 Ok(())
             }
         },
-        Command::Inventory { path, cbom, output } => run_inventory(&path, cbom, output.as_deref()),
+        Command::Inventory { path, cbom, output } => {
+            let merged = config.merge_with_cli(None, None, None, None, None, output, Some(cbom));
+            run_inventory(&path, merged.cbom, merged.output.as_deref())
+        }
         Command::Verify { .. } => {
             bail!(
                 "This CLI does not invoke formal verification directly (a Lean 4 toolchain \
@@ -274,7 +325,7 @@ fn main() -> Result<()> {
             scan,
             inventory,
             report,
-        } => run_verify_all(bench, scan, inventory, report),
+        } => run_verify_all(bench, scan, inventory, report, &config),
         Command::TeeRun { .. } => {
             bail!(
                 "TEE attestation is not implemented yet (planned for Phase 4) and requires \
@@ -284,7 +335,7 @@ fn main() -> Result<()> {
     }
 }
 
-fn run_test(kind: TestKind) -> Result<()> {
+fn run_test(kind: TestKind, config: &CliConfig) -> Result<()> {
     match kind {
         TestKind::Kem {
             algo,
@@ -292,6 +343,15 @@ fn run_test(kind: TestKind) -> Result<()> {
             iterations,
             report,
         } => {
+            let merged = config.merge_with_cli(
+                Some(iterations),
+                Some(report.to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+            );
             if hybrid {
                 if !matches!(algo.parse(), Ok(kem::KemAlgorithm::MlKem768)) {
                     bail!(
@@ -299,13 +359,13 @@ fn run_test(kind: TestKind) -> Result<()> {
                          got algo '{algo}'. Pass 'ml-kem-768' explicitly, or drop --hybrid."
                     );
                 }
-                let r = kem::run_hybrid(iterations);
-                print_report(&r, r.failures == 0, report)?;
+                let r = kem::run_hybrid(merged.iterations);
+                print_report(&r, r.failures == 0, &merged.report)?;
                 check_hybrid_report(&r)?;
             } else {
                 let algorithm: kem::KemAlgorithm = algo.parse()?;
-                let r = kem::run(algorithm, iterations);
-                print_report(&r, r.all_passed(), report)?;
+                let r = kem::run(algorithm, merged.iterations);
+                print_report(&r, r.all_passed(), &merged.report)?;
                 check_kem_report(&r)?;
             }
             Ok(())
@@ -315,9 +375,18 @@ fn run_test(kind: TestKind) -> Result<()> {
             iterations,
             report,
         } => {
+            let merged = config.merge_with_cli(
+                Some(iterations),
+                Some(report.to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+            );
             let algorithm: sig::SigAlgorithm = algo.parse()?;
-            let r = sig::run(algorithm, iterations);
-            print_report(&r, r.all_passed(), report)?;
+            let r = sig::run(algorithm, merged.iterations);
+            print_report(&r, r.all_passed(), &merged.report)?;
             check_sig_report(&r)?;
             Ok(())
         }
@@ -368,7 +437,7 @@ fn run_inventory(path: &str, cbom: bool, output: Option<&str>) -> Result<()> {
 
 /// Turns a failed [`kem::KemReport`] into an error with a human-readable
 /// count. Split out from `run_test` so the failure-message formatting is
-/// unit-testable against a synthetic failing report, without needing to
+/// unit-testable against a synthetic failing _, without needing to
 /// actually break a KEM implementation to exercise this path.
 fn check_kem_report(r: &kem::KemReport) -> Result<()> {
     if !r.all_passed() {
@@ -411,11 +480,11 @@ fn check_sig_report(r: &sig::SigReport) -> Result<()> {
 fn print_report<T: serde::Serialize + std::fmt::Debug>(
     report: &T,
     passed: bool,
-    format: ReportFormat,
+    format: &str,
 ) -> Result<()> {
     match format {
-        ReportFormat::Json => println!("{}", serde_json::to_string_pretty(report)?),
-        ReportFormat::Text => {
+        "json" | "Json" => println!("{}", serde_json::to_string_pretty(report)?),
+        _ => {
             println!("{report:#?}");
             println!("result: {}", if passed { "PASS" } else { "FAIL" });
         }
@@ -423,25 +492,41 @@ fn print_report<T: serde::Serialize + std::fmt::Debug>(
     Ok(())
 }
 
-fn run_verify_all(bench: bool, scan: bool, inventory: bool, report: ReportFormat) -> Result<()> {
+fn run_verify_all(
+    bench: bool,
+    scan: bool,
+    inventory: bool,
+    report: ReportFormat,
+    config: &CliConfig,
+) -> Result<()> {
+    let merged =
+        config.merge_with_cli(None, Some(report.to_string()), None, None, None, None, None);
     let mut all_passed = true;
 
-    // Run core tests (KEM only for now - SIG tests cause stack overflow on Windows)
+    // Run core KEM tests
     println!("=== Running core KEM tests ===");
     let kem_512 = kem::run(kem::KemAlgorithm::MlKem512, 3);
     let kem_768 = kem::run(kem::KemAlgorithm::MlKem768, 3);
     let kem_1024 = kem::run(kem::KemAlgorithm::MlKem1024, 3);
     let hybrid = kem::run_hybrid(3);
 
-    print_report(&kem_512, kem_512.all_passed(), report)?;
-    print_report(&kem_768, kem_768.all_passed(), report)?;
-    print_report(&kem_1024, kem_1024.all_passed(), report)?;
-    print_report(&hybrid, hybrid.failures == 0, report)?;
+    print_report(&kem_512, kem_512.all_passed(), &merged.report)?;
+    print_report(&kem_768, kem_768.all_passed(), &merged.report)?;
+    print_report(&kem_1024, kem_1024.all_passed(), &merged.report)?;
+    print_report(&hybrid, hybrid.failures == 0, &merged.report)?;
 
     all_passed &= kem_512.all_passed()
         && kem_768.all_passed()
         && kem_1024.all_passed()
         && hybrid.failures == 0;
+
+    // Run core SIG tests (with larger stack on Windows to avoid stack overflow)
+    println!("=== Running core SIG tests ===");
+    let sig_results = run_sig_tests_with_large_stack()?;
+    for (_name, r) in &sig_results {
+        print_report(r, r.all_passed(), &merged.report)?;
+        all_passed &= r.all_passed();
+    }
 
     // Run benches if requested
     if bench {
@@ -472,6 +557,33 @@ fn run_verify_all(bench: bool, scan: bool, inventory: bool, report: ReportFormat
         bail!("verify-all failed: one or more checks did not pass");
     }
     Ok(())
+}
+
+/// Run a representative subset of SIG tests in a thread with increased stack size
+/// to avoid stack overflow on Windows (where the default 1MB stack is too small
+/// for SLH-DSA's deep recursion).
+fn run_sig_tests_with_large_stack() -> Result<Vec<(String, sig::SigReport)>> {
+    let builder = thread::Builder::new()
+        .name("verify-all-sig".into())
+        .stack_size(16 * 1024 * 1024); // 16 MB stack
+
+    let handle = builder.spawn(|| {
+        let mut results = Vec::new();
+        // Run a representative subset: ML-DSA-65 (NIST recommended) and one SLH-DSA
+        let algos = [
+            sig::SigAlgorithm::MlDsa65,
+            sig::SigAlgorithm::SlhDsaSha2128f,
+        ];
+        for algo in algos {
+            let r = sig::run(algo, 3);
+            results.push((algo.name().to_string(), r));
+        }
+        results
+    })?;
+
+    handle
+        .join()
+        .map_err(|_| anyhow::anyhow!("SIG test thread panicked"))
 }
 
 #[cfg(test)]

@@ -28,7 +28,7 @@ To set up your development environment:
 4. Install dependencies:
    ```bash
    cd smp-pqc-testkit
-   cargo install --locked cargo-expand cargo-expand cargo-expand
+   cargo install --locked cargo-fuzz cargo-sort
    ```
 5. Build the project:
    ```bash
