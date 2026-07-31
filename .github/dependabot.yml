@@ -1,0 +1,122 @@
+# Dependabot configuration for automated dependency updates
+# This ensures we catch upstream security fixes and version bumps
+# for all Cargo crates, GitHub Actions, and Docker images.
+
+version: 2
+updates:
+  # Cargo dependencies (crates.io)
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    # Group related updates to reduce PR noise
+    groups:
+      rustcrypto:
+        patterns:
+          - "ml-kem*"
+          - "ml-dsa*"
+          - "slh-dsa*"
+          - "signature*"
+          - "sha2*"
+          - "sha3*"
+          - "shake*"
+          - "digest*"
+          - "cipher*"
+          - "aes*"
+          - "aes-gcm*"
+          - "chacha20*"
+          - "poly1305*"
+          - "hmac*"
+          - "hkdf*"
+          - "pbkdf2*"
+          - "zeroize*"
+          - "subtle*"
+        update-types:
+          - "minor"
+          - "patch"
+      rustls-ecosystem:
+        patterns:
+          - "rustls*"
+          - "aws-lc-rs*"
+          - "webpki-roots*"
+          - "rustls-pki-types*"
+        update-types:
+          - "minor"
+          - "patch"
+      async-ecosystem:
+        patterns:
+          - "tokio*"
+          - "futures*"
+          - "tower*"
+          - "hyper*"
+          - "quinn*"
+        update-types:
+          - "minor"
+          - "patch"
+      testing:
+        patterns:
+          - "proptest*"
+          - "assert_cmd*"
+          - "predicates*"
+          - "rcgen*"
+          - "criterion*"
+        update-types:
+          - "minor"
+          - "patch"
+      cli:
+        patterns:
+          - "clap*"
+        update-types:
+          - "minor"
+          - "patch"
+      serialization:
+        patterns:
+          - "serde*"
+          - "toml*"
+          - "toml_edit*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Security updates get separate PRs for faster review
+    # Disable auto-merge for security - require review
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Ignore major version bumps that may require manual migration
+    ignore:
+      - dependency-name: "signature"
+        versions: [">= 3.0.0"]
+        # Pinned to 2.3.0-pre.4 due to slh-dsa 0.1.0 incompatibility
+        # Track: https://github.com/RustCrypto/ML-DSA/issues/...
+    # Commit message format
+    commit-message:
+      prefix: "chore(deps): "
+      include: "scope"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    groups:
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Docker (if we add Dockerfile later)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"

@@ -102,8 +102,22 @@ fn test_kem_hybrid_with_mismatched_algo_fails_clearly() {
 
 #[test]
 fn test_kem_hybrid_with_matching_algo_succeeds() {
+    // Also the one place --report text is passed explicitly, exercising
+    // ReportFormat::Text's Display impl (every other test either omits
+    // --report, which now defaults via a raw string in merge_with_cli
+    // without ever constructing a ReportFormat::Text value, or passes
+    // --report json).
     cmd()
-        .args(["test", "kem", "ml-kem-768", "--hybrid", "--iterations", "2"])
+        .args([
+            "test",
+            "kem",
+            "ml-kem-768",
+            "--hybrid",
+            "--iterations",
+            "2",
+            "--report",
+            "text",
+        ])
         .assert()
         .success();
 }
@@ -252,6 +266,71 @@ fn scan_ssh_unreachable_host_fails_clearly() {
 }
 
 #[test]
+fn scan_quic_unreachable_host_fails_clearly() {
+    // Mirrors scan_tls_unreachable_host_fails_clearly / scan_ssh_unreachable_host_fails_clearly
+    // above -- `scan quic`'s CLI dispatch (including spinning up its own
+    // current-thread Tokio runtime) had no test coverage at all before this.
+    cmd()
+        .args([
+            "scan",
+            "quic",
+            "127.0.0.1",
+            "--port",
+            "1",
+            "--timeout-secs",
+            "2",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("QUIC scan"));
+}
+
+#[test]
+fn config_file_sets_default_iterations_when_cli_flag_is_omitted() {
+    // End-to-end coverage of main.rs's `--config` load call site (previously
+    // untested -- only CliConfig::load's own unit tests exercised parsing).
+    let config_path = std::env::temp_dir().join("smp-pqc-cli-test-config-default-iterations.toml");
+    std::fs::write(&config_path, "iterations = 7\n").unwrap();
+
+    let assert = cmd()
+        .args([
+            "--config",
+            config_path.to_str().unwrap(),
+            "test",
+            "kem",
+            "ml-kem-768",
+            "--report",
+            "json",
+        ])
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    let parsed: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(parsed["iterations"], 7);
+
+    std::fs::remove_file(&config_path).ok();
+}
+
+#[test]
+fn config_file_missing_fails_clearly() {
+    let missing_path = std::env::temp_dir().join("smp-pqc-cli-test-config-does-not-exist.toml");
+    std::fs::remove_file(&missing_path).ok();
+    cmd()
+        .args([
+            "--config",
+            missing_path.to_str().unwrap(),
+            "test",
+            "kem",
+            "ml-kem-768",
+            "--iterations",
+            "1",
+        ])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("failed to read config file"));
+}
+
+#[test]
 fn inventory_cbom_detects_our_own_pqc_crates() {
     // "cargo test" runs with CWD set to this crate's own directory, which
     // has no Cargo.lock of its own (it's a workspace member) -- the
@@ -327,6 +406,48 @@ fn tee_run_attest_fails_with_planned_phase_message() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("not implemented yet"));
+}
+
+#[test]
+fn verify_all_runs_core_kem_and_sig_tests_and_reports_pass() {
+    // The plain, no-flags invocation -- run_verify_all's baseline path
+    // (core KEM + SIG tests, including the large-stack SIG worker thread)
+    // was entirely untested before this: no test invoked `verify-all` at
+    // all, despite it being documented as "a meta-command for CI
+    // integration."
+    let assert = cmd().arg("verify-all").assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(stdout.contains("Running core KEM tests"));
+    assert!(stdout.contains("Running core SIG tests"));
+    assert!(stdout.contains("=== verify-all result: PASS ==="));
+}
+
+#[test]
+fn verify_all_with_inventory_flag_and_no_lockfile_reports_failure_without_failing_the_command() {
+    // Default CWD under `cargo test` is this crate's own directory, which
+    // has no Cargo.lock of its own (see inventory_cbom_detects_our_own_pqc_crates
+    // above) -- so `--inventory` here exercises the "Inventory failed"
+    // branch specifically. Inventory failure must not affect verify-all's
+    // own pass/fail verdict (it isn't factored into all_passed).
+    let assert = cmd().args(["verify-all", "--inventory"]).assert().success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(stdout.contains("Inventory failed"));
+}
+
+#[test]
+fn verify_all_with_bench_scan_inventory_flags_prints_planned_messages_and_runs_inventory() {
+    // Run from the workspace root (has a real Cargo.lock) to exercise the
+    // "Inventory completed successfully" branch instead, alongside the
+    // --bench/--scan planned-message branches in the same process.
+    let assert = cmd()
+        .args(["verify-all", "--bench", "--scan", "--inventory"])
+        .current_dir("..")
+        .assert()
+        .success();
+    let stdout = String::from_utf8_lossy(&assert.get_output().stdout);
+    assert!(stdout.contains("Benchmarks requested"));
+    assert!(stdout.contains("Network scans requested"));
+    assert!(stdout.contains("Inventory completed successfully"));
 }
 
 #[test]

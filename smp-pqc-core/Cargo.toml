@@ -40,6 +40,26 @@ name = "dudect_ml_kem_decap"
 path = "examples/dudect_ml_kem_decap.rs"
 
 [[example]]
+name = "dudect_ml_kem_512_decap"
+path = "examples/dudect_ml_kem_512_decap.rs"
+
+[[example]]
+name = "dudect_ml_kem_1024_decap"
+path = "examples/dudect_ml_kem_1024_decap.rs"
+
+[[example]]
+name = "dudect_ml_dsa_sign"
+path = "examples/dudect_ml_dsa_sign.rs"
+
+[[example]]
+name = "dudect_slh_dsa_sign"
+path = "examples/dudect_slh_dsa_sign.rs"
+
+[[example]]
+name = "dudect_hybrid_kem"
+path = "examples/dudect_hybrid_kem.rs"
+
+[[example]]
 name = "mohawk_nexus_integration"
 path = "examples/mohawk_nexus_integration.rs"
 

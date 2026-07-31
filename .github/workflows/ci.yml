@@ -23,6 +23,59 @@ jobs:
       - run: cargo build --workspace --all-targets --locked
       - run: cargo test --workspace --locked
 
+  cargo-deny:
+    name: cargo-deny (advisories/licenses/bans/sources) (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  msrv:
+    name: MSRV (rustc 1.88.0, ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace --all-targets --locked
+      - run: cargo test --workspace --locked
+
+  coverage:
+    name: code coverage (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+      # Two separate invocations, not one combined `-p core -p cli`: the
+      # crates are at different coverage levels (core's algorithm logic is
+      # ~95%+; cli's remaining gaps are SSH/QUIC's "server negotiated
+      # successfully but not PQC" branches, which need a local test server
+      # neither protocol has yet -- see docs/threat-model.md). A single
+      # combined threshold would either fail permanently on cli's real
+      # number or silently mask core regressions behind cli's slack.
+      # Thresholds below are set at/near the current measured floor
+      # (verified locally before this change) so they catch real
+      # regressions without being aspirational numbers nobody enforces.
+      - name: Coverage - smp-pqc-core (floor 90% lines / 90% functions)
+        run: |
+          cargo llvm-cov -p smp-pqc-core --lib --tests --locked --lcov --output-path lcov-core.info
+          cargo llvm-cov -p smp-pqc-core --lib --tests --locked --summary-only \
+            --fail-under-lines 90 --fail-under-functions 90
+      - name: Coverage - smp-pqc-cli (floor 90% lines / 80% functions)
+        run: |
+          cargo llvm-cov -p smp-pqc-cli --bins --tests --locked --lcov --output-path lcov-cli.info
+          cargo llvm-cov -p smp-pqc-cli --bins --tests --locked --summary-only \
+            --fail-under-lines 90 --fail-under-functions 80
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: lcov-core.info,lcov-cli.info
+          flags: unittests
+          fail_ci_if_error: false
+
   fmt-clippy:
     name: fmt + clippy (ubuntu-latest)
     runs-on: ubuntu-latest

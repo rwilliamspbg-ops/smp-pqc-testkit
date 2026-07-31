@@ -13,6 +13,18 @@
 //! low-level control (specific parameter sets, raw key/ciphertext/signature
 //! bytes, context strings) that those wrappers deliberately abstract away
 //! for the CLI's simpler use case.
+//!
+//! DEPRECATED API TRACKING: This file uses `ml_kem::ExpandedKeyEncoding`,
+//! `to_expanded_bytes()`, `from_expanded_bytes()`, and `ml_dsa::SigningKey::expanded_key().to_expanded()`
+//! which are deprecated in ml-kem 0.3.2 / ml-dsa 0.1.1. These are used for
+//! KAT validation against NIST reference vectors where we need to compare
+//! exact internal key encodings. The suppression is intentional and scoped
+//! to this test module. MIGRATION TODO: When ml-kem/ml-dsa provide a
+//! stable, non-deprecated API for expanded key serialization/deserialization
+//! (or when ACVP vectors no longer require it), remove the `#[allow(deprecated)]`
+//! attributes and migrate to the new API. Track upstream at:
+//! - https://github.com/RustCrypto/ML-KEM
+//! - https://github.com/RustCrypto/ML-DSA
 
 use ml_dsa::Keypair as MlDsaKeypair;
 use ml_kem::kem::{Decapsulate, FromSeed, KeyExport};

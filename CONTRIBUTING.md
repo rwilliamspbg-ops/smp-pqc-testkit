@@ -25,19 +25,32 @@ To set up your development environment:
    ```bash
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
-4. Install dependencies:
+4. Install dependencies. `cargo-deny` and `cargo-llvm-cov` match what CI
+   enforces (see `.github/workflows/ci.yml`); `cargo-fuzz`/`cargo-sort` are
+   used for the fuzz target and Cargo.toml key ordering, respectively.
+   Also install [`just`](https://github.com/casey/just) if you want the
+   `justfile` shortcuts below (optional -- every recipe is a thin wrapper
+   around a plain `cargo`/`cargo-*` command, so it's not required):
    ```bash
    cd smp-pqc-testkit
-   cargo install --locked cargo-expand cargo-expand cargo-expand
+   cargo install --locked cargo-fuzz cargo-sort cargo-deny cargo-llvm-cov
    ```
 5. Build the project:
    ```bash
    cargo build --workspace
+   # or: just build
    ```
 6. Run the tests:
    ```bash
    cargo test --workspace
+   # or: just test
    ```
+
+This workspace also pins a minimum supported Rust version (MSRV) in
+`[workspace.package].rust-version` in the root `Cargo.toml`, checked in CI's
+`msrv` job. If you bump a dependency and CI's `msrv` job fails, either avoid
+the feature that raised the floor or bump `rust-version` to match (with a
+comment explaining what raised it, following the existing one).
 
 ## Making Changes
 
@@ -59,6 +72,14 @@ To set up your development environment:
    ```bash
    cargo clippy --workspace --all-targets -- -D warnings
    ```
+7. If you touched dependencies, run the supply-chain gate (RustSec
+   advisories, license compliance, banned crates/sources):
+   ```bash
+   cargo deny check
+   ```
+
+   `just release-check` runs steps 4-7 (plus `cargo doc` and the Lean
+   proofs) in one shot -- the same set CI enforces on every push.
 7. Commit your changes:
    ```bash
    git commit -am "Add feature or fix bug"

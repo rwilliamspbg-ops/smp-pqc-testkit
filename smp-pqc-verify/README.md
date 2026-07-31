@@ -22,6 +22,12 @@ proofs for that instead.
   correctly rejected its tampered counterpart -- the counters can't get to
   zero by some other bookkeeping accident, because they're proved monotone
   (only ever incremented) by induction over the whole iteration list.
+- **`SmpPqcVerify/ExtendedHybrid.lean`**: generalises the combiner model to
+  all three ML-KEM parameter sets (512, 768, 1024) and proves the
+  algorithm-agnostic property: the combiner logic depends only on the boolean
+  `classical_ok && pq_ok`, not on which KEM algorithm is used. Proves the
+  same "iff both legs succeed" invariant and the one-sided failure lemmas for
+  all parameter sets.
 
 Every theorem here is checked against Lean's kernel with **no `sorry`** and
 no dependency on unproven axioms beyond Lean's own trusted core (`propext`,

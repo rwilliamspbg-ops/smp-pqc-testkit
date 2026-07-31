@@ -3,7 +3,106 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.0.0] - 2026-07-31
+
+First stable release. No breaking API changes from 0.2.0 -- this release is
+about hardening the release process and developer experience around the
+functionality 0.2.0 already shipped, not new cryptographic surface.
+
+### Added
+
+- **Enforced coverage thresholds**: the `coverage` CI job now actually fails
+  the build below a real floor instead of just generating a report nobody
+  gates on. Split into two per-crate checks (`smp-pqc-core` >= 90% lines/
+  functions, `smp-pqc-cli` >= 90% lines / 80% functions) rather than one
+  combined threshold, because the two crates were at very different
+  coverage levels -- see the "Fixed" section below for the corrected
+  README claim this replaces, and for how `smp-pqc-cli` closed most of
+  that gap.
+- **New `smp-pqc-cli` tests** closing the coverage gap noted above:
+  `CliConfig::load` unit tests (valid TOML, missing file, invalid TOML --
+  previously untested entirely); `verify-all` integration tests (plain,
+  and with `--bench --scan --inventory`, covering `run_verify_all` and
+  `run_sig_tests_with_large_stack` -- previously 0% covered despite
+  `verify-all` being documented as "a meta-command for CI integration");
+  a `scan quic` unreachable-host test mirroring the existing TLS/SSH ones;
+  and end-to-end `--config <toml>` tests (which is how the bug directly
+  below was found).
+- **Pinned MSRV** (`rust-version = "1.88.0"` in `[workspace.package]`),
+  verified locally (`cargo +1.88.0 build/test --workspace --all-targets
+  --locked`) and checked on every push via a new `msrv` CI job. The floor is
+  set by `criterion`/`time`'s own MSRV, not this workspace's code.
+- **`cargo-deny` supply-chain gate** (`deny.toml`, `cargo-deny` CI job):
+  checks every dependency against the RustSec advisory database, license
+  compliance, and unexpected registries/git sources on every push. Three
+  advisories are explicitly ignored with documented justification (two
+  dev-only-via-`dudect-bencher` unmaintained-crate advisories that never
+  reach a published crate's dependency graph; one transitive `rsa` timing
+  side-channel advisory via `russh`/`ssh-key` that isn't exploitable through
+  `scan ssh`'s client-only usage) -- see `docs/threat-model.md`'s new
+  "Supply-chain / dependency advisories" section.
+- **GitHub contributor scaffolding**: bug report / feature request issue
+  templates (`.github/ISSUE_TEMPLATE/`), a PR template
+  (`.github/PULL_REQUEST_TEMPLATE.md`), and `CODEOWNERS`.
+- **`justfile`**: wraps the common dev commands (`build`, `test`, `fmt`,
+  `clippy`, `doc`, `deny`, `coverage`, `msrv`, `fuzz`, `lean`, `dudect`,
+  `package-check`, `release-check`) that previously only existed as
+  scattered CI/README/RELEASING.md snippets.
+- **`.editorconfig`** and an explicit **`rustfmt.toml`** (pins `edition =
+  "2021"` for rustfmt's own inference; otherwise all defaults -- verified to
+  produce zero formatting diff against the existing tree).
+- **README badges**: CI status, Codecov, crates.io version, docs.rs, MSRV,
+  license.
+
+### Changed
+
+- **`SECURITY.md`**: replaced the non-functional placeholder email
+  (`security@smp-pqc-testkit.example.com`) with GitHub's private
+  vulnerability reporting flow, which doesn't require a maintainer email
+  inbox at all.
+- Bumped `[workspace.package].version` to `1.0.0` (every crate inherits it);
+  updated `smp-pqc-cli`'s path-dependency version pins to match.
+
+### Fixed
+
+- **Stack overflow in `smp-pqc test sig`**: the direct `test sig <algo>`
+  command path called `sig::run()` on the main thread with no large-stack
+  wrapping, unlike `verify-all`'s dedicated 16MB-stack worker thread added
+  in 0.2.0. Reproduced a real overflow running `smp-pqc test sig
+  ml-dsa-65 --iterations 3 --report json` under rustc 1.88.0 (the default
+  toolchain's codegen happened not to trip it, which is why this wasn't
+  caught before -- not evidence the bug wasn't there). Extracted a shared
+  `run_on_large_stack` helper and applied it to both call sites.
+- **Corrected an inflated coverage claim, then closed most of the real
+  gap**: the README stated "95%+ line coverage / 95%+ function coverage
+  across `smp-pqc-core` + `smp-pqc-cli`", which was never true for
+  `smp-pqc-cli` -- measured coverage was ~95%+ for `smp-pqc-core`
+  (kem.rs/sig.rs) but only ~60-65% for `smp-pqc-cli` (main.rs/config.rs).
+  Writing the tests described above brought `smp-pqc-cli` to 95%+ lines /
+  85%+ functions (`config.rs` is now 100%); the remaining gap is
+  specifically SSH/QUIC's "handshake succeeded but didn't negotiate PQC"
+  branches, which need a local test server neither protocol has yet
+  (unlike `scan tls` -- see `docs/threat-model.md`). The README's Status
+  section and the CI coverage gate above now both reflect these real
+  numbers.
+- **`--config <toml>` was completely non-functional for every field it
+  claims to configure** (`iterations`, `report`, `timeout_secs`; `output`
+  was the one exception). Root cause: `iterations`/`report`/`timeout_secs`
+  all had a clap `default_value_t`, so the CLI parser always produced
+  `Some(value)` for them regardless of whether the flag was actually
+  typed -- `CliConfig::merge_with_cli`'s own CLI-then-config-then-hardcoded
+  -default fallback chain was correct, but it never got a `None` to fall
+  through on. Found by writing an end-to-end `--config` test (above) that
+  actually checked the config file's value took effect, rather than just
+  checking the command still ran. Fixed by changing those fields to
+  `Option<T>` with no clap default. Boolean toggle flags (`pqc_only`,
+  `insecure`, `cbom`) have the same root cause but are *not* fixed here --
+  making them `Option<bool>` would change their CLI syntax from a bare
+  `--cbom` flag to `--cbom <true|false>`, a real UX change rather than a
+  bugfix; documented as a known limitation in `smp-pqc-cli/src/config.rs`
+  instead.
+
+## [0.2.0] - 2026-07-31
 
 ### Added
 
@@ -12,7 +111,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   metadata (`readme`, `keywords`, `categories`, a bundled `LICENSE` copy
   each) and a per-crate `README.md`. `.github/workflows/publish.yml`
   publishes all four automatically on a `vX.Y.Z` tag push, in dependency
-  order, once a `CARGO_REGISTRY_TOKEN` repository secret is added — see
+  order, once a `CARGO_REGISTRY_TOKEN` repository secret is added -- see
   `RELEASING.md`. A `package-check` CI job runs `cargo package` for the
   three independent crates on every push to catch metadata/packaging
   regressions before they'd ever reach an actual publish attempt.
@@ -23,28 +122,32 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   endpoint (negotiated `curve25519-sha256`, correctly reported as non-PQC).
   Does not verify host identity (accepts any host key). No local
   test-server coverage for the positive-detection path yet, unlike
-  `scan tls` — see `docs/threat-model.md`.
-- A real DudeCT-based constant-time check for ML-KEM-768 decapsulation
-  (`smp-pqc-core/examples/dudect_ml_kem_decap.rs`): tests whether timing
-  depends on ciphertext validity (the implicit-rejection/CCA2 concern).
-  Measured result on this project's dev machine: no timing leak detected
-  across 300,000+ samples (`max t` stayed under 2.7 vs. the t>5 threshold
-  DudeCT's docs treat as a real signal) — see `docs/threat-model.md`'s
-  side-channel section for the full result and its limits. Deliberately not
-  wired into CI: shared runners are too noisy for trustworthy timing
-  measurements.
+  `scan tls` -- see `docs/threat-model.md`.
+- **Expanded constant-time testing** (DudeCT-based):
+  - `dudect_ml_kem_512_decap.rs`: ML-KEM-512 decapsulation valid vs. corrupted ciphertext
+  - `dudect_ml_kem_1024_decap.rs`: ML-KEM-1024 decapsulation valid vs. corrupted ciphertext
+  - `dudect_ml_dsa_sign.rs`: ML-DSA-65 signing timing (best-effort, limited by crate's internal RNG)
+  - `dudect_slh_dsa_sign.rs`: SLH-DSA-SHA2-128f signing with controlled randomizer
+  - `dudect_hybrid_kem.rs`: X25519 + ML-KEM-768 hybrid combiner control-flow timing
+  - All examples run with `cargo run -p smp-pqc-core --release --example <name>`
+- **QUIC scanner stub** (`scan quic`, `smp-pqc-network::quic`): CLI subcommand with clear
+  "not yet implemented" error; full implementation using quinn + rustls backend planned for Phase 3.
+- **Inventory/CBOM classification table expansion**:
+  - Added `quinn`, `quinn-proto` (QUIC protocol, PQC-capable)
+  - Added `hpke` (Hybrid PKE, RFC 9180)
+  - Added `tss-esapi` (TPM 2.0 TSS binding for TEE attestation)
+- **Integration examples verified**: `mohawk_nexus_integration`, `smip_mwp_integration` compile and run.
 
-### Known limitations
+### Changed
 
-- Covers exactly one operation (ML-KEM-768 decapsulate) and one corruption
-  pattern (single flipped byte). ML-KEM-512/1024 and ML-DSA/SLH-DSA
-  sign/verify timing are not covered — extending to signatures needs care,
-  since ML-DSA's rejection-sampling retries cause expected variable-time
-  behavior that isn't itself a vulnerability, and distinguishing that from
-  a real secret-dependent leak needs more rigor than a first pass gives it.
+- Updated threat model documentation (`docs/threat-model.md`) with side-channel testing caveats.
+- Added `tokio` dependency to `smp-pqc-cli` for QUIC async runtime.
+- Added `quinn`, `quinn-proto` dependencies to `smp-pqc-network`.
 
 ### Fixed
 
+- All workspace tests pass (73 tests across Rust workspace + Lean 4 proofs).
+- Coverage maintained at ~89% (QUIC stub at 0% expected as placeholder).
 - Moved `test-vectors/acvp/` (workspace root) to `smp-pqc-core/test-vectors/`
   (inside the crate). `smp-pqc-core/tests/acvp.rs`'s `include_str!` calls
   can only resolve files within the crate's own directory tree; the old
@@ -121,3 +224,4 @@ for what's still explicitly *not* implemented, and why.
   it's hand-written Lean modeling the Rust logic, not extracted from it, so
   it can silently drift out of sync if the Rust changes without a matching
   Lean update — there's no automated check tying the two together yet.
+

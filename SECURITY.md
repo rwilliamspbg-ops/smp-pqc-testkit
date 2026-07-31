@@ -6,8 +6,9 @@ We provide security updates for the following versions of the SMP-PQC-Testkit:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1.0 | :x:                |
+| 1.x     | :white_check_mark: |
+| 0.2.x   | :white_check_mark: |
+| 0.1.x   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -15,9 +16,17 @@ We take the security of our software seriously. If you believe you have found a 
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please send an email to [security@smp-pqc-testkit.example.com](mailto:security@smp-pqc-testkit.example.com).
+Instead, please use
+[GitHub's private vulnerability reporting](https://github.com/rwilliamspbg-ops/smp-pqc-testkit/security/advisories/new)
+(the "Report a vulnerability" button under this repository's Security tab).
+This opens a private advisory visible only to maintainers until it's ready
+for disclosure, and doesn't require sharing details anywhere public.
 
-You should receive a response within 48 hours. If you do not, please follow up via email to ensure we received your original message.
+You should receive a response within 48 hours. If you do not, and the
+private-advisory route isn't available to you, open a
+[GitHub Discussion](https://github.com/rwilliamspbg-ops/smp-pqc-testkit/discussions)
+asking a maintainer to reach out directly rather than posting vulnerability
+details in the clear.
 
 Please include the following information in your report:
 

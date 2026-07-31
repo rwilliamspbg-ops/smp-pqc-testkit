@@ -1,0 +1,6 @@
+# Pins rustfmt's edition inference explicitly rather than relying on each
+# crate's own Cargo.toml `edition` being read consistently by every rustfmt
+# version/invocation. Intentionally otherwise all defaults -- this workspace
+# has never opted into non-default rustfmt style, and CI's `cargo fmt --all
+# -- --check` should keep matching what's already in the tree.
+edition = "2021"
