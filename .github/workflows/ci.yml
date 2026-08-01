@@ -23,6 +23,21 @@ jobs:
       - run: cargo build --workspace --all-targets --locked
       - run: cargo test --workspace --locked
 
+  # GitHub-hosted Linux ARM64 runners (generally available for public
+  # repos). Separate from the build-test matrix above rather than a third
+  # matrix entry: ARM64 is a coverage signal worth having, not something
+  # that should block every PR if it's flaky early on -- promote it into
+  # build-test's matrix once it's proven stable for a while.
+  build-test-arm64:
+    name: build + test (ubuntu-24.04-arm)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace --all-targets --locked
+      - run: cargo test --workspace --locked
+
   cargo-deny:
     name: cargo-deny (advisories/licenses/bans/sources) (ubuntu-latest)
     runs-on: ubuntu-latest

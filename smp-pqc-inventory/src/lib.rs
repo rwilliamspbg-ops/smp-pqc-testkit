@@ -2,3 +2,4 @@
 pub mod cbom;
 pub mod classify;
 pub mod lockfile;
+pub mod readiness;

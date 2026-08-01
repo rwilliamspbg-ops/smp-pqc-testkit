@@ -24,9 +24,11 @@
   classifications are in use.
 - **Decapsulation timing oracle**: an adversary measuring how long
   decapsulation takes to distinguish valid from corrupted ciphertexts,
-  defeating the point of implicit rejection. Mitigation: a DudeCT-based
-  constant-time check (`smp-pqc-core/examples/dudect_ml_kem_decap.rs`) — see
-  the side-channel section below for the measured result and its limits.
+  defeating the point of implicit rejection. Mitigation: DudeCT-based
+  constant-time checks across all three ML-KEM parameter sets
+  (`smp-pqc-core/examples/dudect_ml_kem*_decap.rs`), plus ML-DSA/SLH-DSA
+  signing and the hybrid combiner — see the side-channel section below
+  for the measured results and their limits.
 
 ## What this kit does not defend against (out of scope)
 
@@ -99,51 +101,70 @@
 
 ## Side-channel / constant-time testing
 
-**One targeted check exists; broad coverage does not.**
-`smp-pqc-core/examples/dudect_ml_kem_decap.rs` uses the
-[DudeCT](https://eprint.iacr.org/2016/1123.pdf) statistical methodology
-(via the [`dudect-bencher`](https://crates.io/crates/dudect-bencher) crate)
-to test whether ML-KEM-768's decapsulation timing depends on ciphertext
-validity — the specific concern behind implicit rejection (see
-`smp-pqc-core/src/kem.rs`'s module docs). Run it yourself:
+**This section was stale relative to the code for a while** -- it used to
+describe only the original ML-KEM-768 check, but five more checks were
+added in the 0.2.0 release (`dudect_ml_kem_512_decap.rs`,
+`dudect_ml_kem_1024_decap.rs`, `dudect_ml_dsa_sign.rs`,
+`dudect_slh_dsa_sign.rs`, `dudect_hybrid_kem.rs`) and this doc never got
+updated to match. Corrected here; see `docs/benchmarks.md` for the full
+measured-result table from the run that caught this drift.
 
-```bash
-cargo run -p smp-pqc-core --release --example dudect_ml_kem_decap
-```
+All six checks use the [DudeCT](https://eprint.iacr.org/2016/1123.pdf)
+statistical methodology via the
+[`dudect-bencher`](https://crates.io/crates/dudect-bencher) crate. Run any
+of them with `cargo run -p smp-pqc-core --release --example <name>` (or
+`just dudect <name>`):
 
-**Measured result** (this project's Windows dev machine, `--release`,
-20,000 samples per run, three independent runs plus one ~20-second
-`--continuous` run accumulating 300,000+ samples): `max t` consistently
-stayed between 1.3 and 2.7 in absolute value, well under the t > 5 threshold
+- `dudect_ml_kem_decap.rs` / `dudect_ml_kem_512_decap.rs` /
+  `dudect_ml_kem_1024_decap.rs`: whether ML-KEM-{512,768,1024}
+  decapsulation timing depends on ciphertext validity — the specific
+  concern behind implicit rejection (see `smp-pqc-core/src/kem.rs`'s
+  module docs). `Left` = valid ciphertext, `Right` = single flipped bit
+  at a random offset.
+- `dudect_ml_dsa_sign.rs`: whether ML-DSA-65's retry count under
+  Fiat-Shamir-with-aborts rejection sampling depends on the *secret key*
+  rather than just public randomness (fixed key/message, varying RNG
+  seed) — the retries themselves are expected and not a vulnerability by
+  design; a secret-key-dependent retry *count* would be.
+- `dudect_slh_dsa_sign.rs`: same question for SLH-DSA-SHA2-128f's
+  hash-tree signing (fixed key/message, varying the 32-byte randomizer).
+- `dudect_hybrid_kem.rs`: whether the X25519+ML-KEM-768 hybrid combiner's
+  control flow (`if classical_ok && pq_ok { combine } `) leaks which leg
+  failed through timing.
+
+**Measured results** (this project's Windows dev machine, `--release`,
+one run per check, ~11k-20k samples each — see `docs/benchmarks.md` for
+the exact numbers and hardware/OS/rustc specs): every check's `max t`
+stayed under 2.0 in absolute value, well under the `t > 5` threshold
 DudeCT's own docs describe as a good indication of non-constant-time
-behavior. **No timing leak was detected** under this input distribution, on
-this machine, as of this test's addition.
+behavior. **No timing leak was detected** in any of the six checks under
+this input distribution, on this machine, as of this run. The original
+ML-KEM-768 check has additional history behind it: three independent
+20,000-sample runs plus one ~20-second `--continuous` run accumulating
+300,000+ samples, all consistently in the 1.3-2.7 range.
 
-Read that result correctly:
+Read these results correctly:
 - This is evidence of *no detected* leak, not a proof of constant-time-ness
   in general — DudeCT's own README says exactly this: "it is not possible
   to prove that a function always runs in constant time."
-- The measurement environment matters. This ran on a general-purpose
+- The measurement environment matters. These ran on a general-purpose
   Windows dev machine, not a quiet, CPU-pinned, frequency-scaling-disabled
   benchmark rig. That's an argument for the *low* t-values being credible
-  (noise pushes t-values around, and it stayed low anyway across repeated
-  runs and rising sample counts) — but it also means a marginal real leak
-  close to the noise floor could still be masked. Take this as a real,
-  reassuring first check, not a certified clean bill of health.
-- This covers exactly one operation (ML-KEM-768 decapsulate, one
-  corruption pattern: a single flipped byte at a random offset). It says
-  nothing about ML-KEM-512/1024, ML-DSA, or SLH-DSA's sign/verify timing —
-  extending this to signatures needs care: ML-DSA's Fiat-Shamir-with-aborts
-  rejection sampling causes *expected* variable-time behavior that isn't
-  itself a vulnerability (unless the retry count depends on the secret key
-  in an exploitable way), and distinguishing "expected variance from public
-  randomness" from "a real secret-dependent leak" needs more care than a
-  first pass gives it credit for. Left as explicit future work rather than
-  risking a misleading interpretation.
+  (noise pushes t-values around, and they stayed low anyway) — but it also
+  means a marginal real leak close to the noise floor could still be
+  masked. Take these as real, reassuring first checks, not a certified
+  clean bill of health.
+- Coverage is now six operations across ML-KEM (all three parameter
+  sets' decapsulation), ML-DSA (one parameter set's signing), SLH-DSA (one
+  of twelve parameter sets' signing), and the hybrid combiner — still not
+  exhaustive (ML-DSA-44/87 and the other eleven SLH-DSA parameter sets
+  aren't covered yet), but broader than "one operation" now. Extending
+  further is mechanical (the existing checks are templates), not blocked
+  on anything new.
 - Not wired into CI: shared CI runners are virtualized, multi-tenant, and
   have no CPU pinning, which is exactly the kind of environment that
   produces false-positive timing differences from noise, not genuine leaks.
-  This is a manual/local diagnostic tool, run deliberately on a quiet
+  These are manual/local diagnostic tools, run deliberately on a quiet
   machine, not an automated gate.
 
 ## Supply-chain / dependency advisories
