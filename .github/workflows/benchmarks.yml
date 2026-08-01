@@ -1,0 +1,63 @@
+name: Publish benchmark report
+
+# Criterion already generates a full HTML report
+# (target/criterion/report/index.html) on every `cargo bench` run --
+# nothing before this workflow ever published it anywhere. Runs on push to
+# main (not on every PR: a full kem+sig bench run takes several minutes
+# and PRs don't need to re-publish the public dashboard) and manually via
+# workflow_dispatch.
+#
+# Requires GitHub Pages to be enabled for this repo with Source =
+# "GitHub Actions" (Settings -> Pages) -- this workflow does not enable
+# that itself. Until it's enabled, this job's deploy step fails cleanly
+# rather than silently no-op'ing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "smp-pqc-bench/**"
+      - "smp-pqc-core/src/**"
+      - ".github/workflows/benchmarks.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Run Criterion benchmarks (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Both benches, same as `just bench` / docs/benchmarks.md's
+      # reproduction instructions. SLH-DSA's "s" variants already use a
+      # reduced Criterion sample size (see smp-pqc-bench/benches/sig.rs)
+      # to keep this to a few minutes instead of tens of minutes.
+      - run: cargo bench -p smp-pqc-bench --bench kem
+      - run: cargo bench -p smp-pqc-bench --bench sig
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/criterion/report
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: benchmark
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
