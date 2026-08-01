@@ -419,11 +419,32 @@ fn run_inventory(path: &str, cbom: bool, output: Option<&str>) -> Result<()> {
             .collect();
         classified.sort_by(|(a, _), (b, _)| a.name.cmp(&b.name));
 
+        let score = smp_pqc_inventory::readiness::compute_readiness_score(&packages);
         let mut out = format!(
-            "{} total dependencies, {} recognized as cryptographic\n\n",
+            "{} total dependencies, {} recognized as cryptographic\n",
             packages.len(),
             classified.len()
         );
+        match score.percent {
+            Some(percent) => out.push_str(&format!(
+                "PQC readiness (key-exchange/signature crates only): {percent}% \
+                 ({}/{} PQC-capable)\n",
+                score.pqc_capable_primitive_crates, score.total_primitive_crates,
+            )),
+            None => out.push_str(
+                "PQC readiness: no key-exchange/signature crates recognized \
+                 in this dependency tree\n",
+            ),
+        }
+        if score.pqc_capable_protocol_crates > 0 {
+            out.push_str(&format!(
+                "{} PQC-capable secure-protocol crate(s) also present (rustls/russh-style) \
+                 -- not counted above; use `scan tls`/`scan ssh` to check what a given \
+                 connection actually negotiates\n",
+                score.pqc_capable_protocol_crates
+            ));
+        }
+        out.push('\n');
         for (pkg, classification) in &classified {
             let category = if classification.is_post_quantum_capable {
                 format!("{:?} [PQC]", classification.category)
