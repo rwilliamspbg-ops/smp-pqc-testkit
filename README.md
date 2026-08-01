@@ -19,9 +19,18 @@
 
 Sovereign Mohawk Post-Quantum Cryptography Test Kit
 
-A Rust workspace for testing NIST post-quantum cryptography (FIPS 203 ML-KEM,
-FIPS 204 ML-DSA, FIPS 205 SLH-DSA) and classical/PQC hybrids, built as a
-component for the Mohawk-Nexus / SMIP-MWP-Rust / smp-tee-runtime /
+A **pure-Rust, memory-safe** test kit for NIST post-quantum cryptography
+(FIPS 203 ML-KEM, FIPS 204 ML-DSA, FIPS 205 SLH-DSA) and classical/PQC
+hybrids — validated against real **NIST ACVP known-answer vectors**, not
+just internal self-consistency, with **Lean 4-proved** control-flow logic
+for the hybrid combiner. It doesn't implement these algorithms from
+scratch (it wraps the RustCrypto `ml-kem`/`ml-dsa`/`slh-dsa` crates); what
+it adds is correctness validation, real TLS/SSH/QUIC handshake scanning
+(reporting what actually got negotiated, not just what's advertised),
+and cryptography inventory/CBOM generation — see
+[docs/comparison.md](docs/comparison.md) for exactly how this differs
+from liboqs/PQClean and when to reach for one of those instead. Also used
+as a component for the Mohawk-Nexus / SMIP-MWP-Rust / smp-tee-runtime /
 Sovereign-Mohawk-Proto stack.
 
 ## Documentation
@@ -36,6 +45,7 @@ Sovereign-Mohawk-Proto stack.
 - [License](#license)
 - [How this compares to liboqs/PQClean](docs/comparison.md)
 - [Benchmark results](docs/benchmarks.md)
+- [Why this exists](docs/why-this-exists.md)
 
 ### Getting Started
 
