@@ -34,6 +34,8 @@ Sovereign-Mohawk-Proto stack.
 - [Publishing](#publishing)
 - [Contributing](#contributing)
 - [License](#license)
+- [How this compares to liboqs/PQClean](docs/comparison.md)
+- [Benchmark results](docs/benchmarks.md)
 
 ### Getting Started
 
@@ -218,13 +220,35 @@ the Mohawk-Nexus networking stack.
 `smp-pqc-core/examples/smip_mwp_integration.rs` demonstrates how to integrate the testkit with
 the SMIP-MWP-Rust secure multiparty computation workflow.
 
+Crate dependency graph (arrows point from dependent to dependency;
+`smp-pqc-verify` is a separate Lean 4 project that models `smp-pqc-core`'s
+control-flow logic by hand, not a Cargo dependency of it):
+
+```mermaid
+graph LR
+    CLI["smp-pqc-cli<br/>(smp-pqc binary)"]
+    CORE["smp-pqc-core<br/>ML-KEM / ML-DSA / SLH-DSA<br/>+ hybrid KEM"]
+    NET["smp-pqc-network<br/>TLS/SSH/QUIC scanning"]
+    INV["smp-pqc-inventory<br/>Cargo.lock -> CBOM"]
+    BENCH["smp-pqc-bench<br/>Criterion benchmarks"]
+    VERIFY["smp-pqc-verify<br/>Lean 4 proofs (separate project)"]
+
+    CLI --> CORE
+    CLI --> NET
+    CLI --> INV
+    BENCH --> CORE
+    VERIFY -. models .-> CORE
+```
+
 ## Roadmap
 
-See [docs/threat-model.md](docs/threat-model.md) for the threat model this
-kit is designed against, and exactly what's blocking each remaining item:
-QUIC scanning (not started), AF_XDP benchmarking and TEE attestation
-(hardware, not just an OS/kernel — WSL2 doesn't unblock either), and
-broader constant-time coverage beyond the one existing ML-KEM-768 check.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the post-1.0.0 roadmap —
+what's planned, what's deliberately cut (and why), and the strategic
+choice behind it (narrow/deep/pure-Rust over broad/shallow/liboqs-style
+breadth). See [docs/threat-model.md](docs/threat-model.md) for the threat
+model this kit is designed against, and the platform-level blockers
+(AF_XDP, TEE attestation — hardware, not just an OS/kernel; WSL2 doesn't
+unblock either) that predate the roadmap and still apply.
 
 ## Publishing
 

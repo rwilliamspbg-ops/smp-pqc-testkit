@@ -54,6 +54,14 @@ fuzz:
 lean:
     cd smp-pqc-verify && lake build
 
+# Criterion benchmarks. See docs/benchmarks.md for a committed real run
+# (hardware/OS/rustc specs + raw numbers) and reproduction notes.
+bench-kem:
+    cargo bench -p smp-pqc-bench --bench kem
+
+bench-sig:
+    cargo bench -p smp-pqc-bench --bench sig
+
 # DudeCT-based constant-time checks. --release matters -- see each example
 # file's doc comment. Not wired into CI (shared runners are too noisy for
 # trustworthy timing measurements) -- run manually on a quiet machine.

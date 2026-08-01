@@ -23,10 +23,9 @@ This opens a private advisory visible only to maintainers until it's ready
 for disclosure, and doesn't require sharing details anywhere public.
 
 You should receive a response within 48 hours. If you do not, and the
-private-advisory route isn't available to you, open a
-[GitHub Discussion](https://github.com/rwilliamspbg-ops/smp-pqc-testkit/discussions)
-asking a maintainer to reach out directly rather than posting vulnerability
-details in the clear.
+private-advisory route isn't available to you, contact a maintainer
+directly through their GitHub profile asking them to reach out, rather
+than posting vulnerability details anywhere public.
 
 Please include the following information in your report:
 
