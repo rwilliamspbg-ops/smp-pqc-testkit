@@ -291,7 +291,7 @@ version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2f6c7dbe95a6ed67ad9f18e57daf93a2f034c524b99fd2b76d18fdfeb6660aa"
 dependencies = [
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
  "zeroize",
 ]
 
@@ -301,7 +301,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "710f1dd022ef4e93f8a438b4ba958de7f64308434fa6a87104481645cc30068b"
 dependencies = [
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
 ]
 
 [[package]]
@@ -672,7 +672,7 @@ dependencies = [
  "cpubits",
  "ctutils",
  "getrandom 0.4.3",
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
  "num-traits",
  "rand_core 0.10.1",
  "serdect",
@@ -697,7 +697,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
 dependencies = [
  "getrandom 0.4.3",
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
  "rand_core 0.10.1",
 ]
 
@@ -931,7 +931,7 @@ dependencies = [
  "ff",
  "group",
  "hkdf",
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
  "pem-rfc7468",
  "pkcs8",
  "rand_core 0.10.1",
@@ -1295,9 +1295,9 @@ dependencies = [
 
 [[package]]
 name = "hybrid-array"
-version = "0.4.13"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "818356c5132c1fede50f837ca96afbe78ff42413047f4abb886217845e1b6c8c"
+checksum = "707114b52a152fa7bdb290cd7cd5912d9467273b6d74e21b8d81aca1f8533f6b"
 dependencies = [
  "ctutils",
  "subtle",
@@ -1346,7 +1346,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4250ce6452e92010fdf7268ccc5d14faa80bb12fc741938534c58f16804e03c7"
 dependencies = [
  "block-padding",
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
 ]
 
 [[package]]
@@ -1553,7 +1553,7 @@ dependencies = [
  "const-oid",
  "crypto-common 0.2.2",
  "ctutils",
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
  "module-lattice",
  "pkcs8",
  "shake",
@@ -1567,7 +1567,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5e15f3e5b957493873e396a66914e83e616b6afe335cdef7efe5c6e1216aba66"
 dependencies = [
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
  "kem",
  "module-lattice",
  "pkcs8",
@@ -1583,7 +1583,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c61b87c9683ab7cb1c6871d261ad5479b6b10ceb52c4352aaca3b5d35a8febe"
 dependencies = [
  "ctutils",
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
  "num-traits",
  "zeroize",
 ]
@@ -2567,7 +2567,7 @@ dependencies = [
  "base16ct",
  "ctutils",
  "der",
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
  "subtle",
  "zeroize",
 ]
@@ -3653,7 +3653,7 @@ checksum = "ab12e7090f27e2ffd9322651492942d50c2926094af30601e1964337db39daf1"
 dependencies = [
  "ff",
  "group",
- "hybrid-array 0.4.13",
+ "hybrid-array 0.4.14",
 ]
 
 [[package]]
