@@ -47,7 +47,7 @@ jobs:
       # to keep this to a few minutes instead of tens of minutes.
       - run: cargo bench -p smp-pqc-bench --bench kem
       - run: cargo bench -p smp-pqc-bench --bench sig
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: target/criterion/report
 
