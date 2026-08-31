@@ -15,7 +15,7 @@ webpki-roots = "1"
 rustls-pki-types = "1"
 anyhow.workspace = true
 serde.workspace = true
-russh = "0.62.4"
+russh = "0.63.1"
 tokio = { version = "1.53.1", features = ["rt-multi-thread", "net", "time"] }
 ssh-key = "0.7.0-rc.11"
 quinn = "0.11"
@@ -23,4 +23,4 @@ quinn-proto = "0.11"
 
 [dev-dependencies]
 rcgen = "0.13"
-russh = "0.62.4"
+russh = "0.63.1"
