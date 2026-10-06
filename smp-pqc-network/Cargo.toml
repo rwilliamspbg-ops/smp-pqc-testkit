@@ -22,5 +22,5 @@ quinn = "0.11"
 quinn-proto = "0.11"
 
 [dev-dependencies]
-rcgen = "0.13"
+rcgen = "0.14"
 russh = "0.62.4"
